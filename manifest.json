@@ -1,0 +1,22 @@
+{
+  "name": "WIT Service Report",
+  "short_name": "WIT SR",
+  "description": "Digital service report for WIT (THAILAND) engineers",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#00695C",
+  "background_color": "#f0f4f3",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

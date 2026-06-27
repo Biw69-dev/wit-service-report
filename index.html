@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#00695C">
+<title>WIT Service Report</title>
+<link rel="manifest" href="manifest.json">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f3; color: #222; }
+.app-header { background: linear-gradient(135deg, #00695C, #00897B); color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.app-header h1 { font-size: 1.1rem; font-weight: 600; }
+.app-header .badge { background: #ff7043; color: #fff; border-radius: 12px; padding: 3px 10px; font-size: 0.7rem; display: none; }
+.container { max-width: 720px; margin: 0 auto; padding: 12px; }
+.card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.card h3 { font-size: 0.85rem; color: #00897B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; border-bottom: 2px solid #00897B; padding-bottom: 6px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.field { margin-bottom: 10px; flex: 1; min-width: 140px; }
+.field label { display: block; font-size: 0.72rem; font-weight: 600; color: #555; margin-bottom: 3px; text-transform: uppercase; }
+.field input, .field textarea, .field select {
+  width: 100%; padding: 8px 10px; border: 1.5px solid #e0e0e0; border-radius: 6px;
+  font-size: 0.9rem; font-family: inherit; transition: border-color 0.2s;
+}
+.field input:focus, .field textarea:focus { border-color: #00897B; outline: none; }
+.field textarea { resize: vertical; min-height: 60px; }
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.checkbox-group label { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; font-weight: 400; text-transform: none; cursor: pointer; padding: 6px 10px; border: 1.5px solid #e0e0e0; border-radius: 20px; user-select: none; }
+.checkbox-group label.checked { background: #e0f2f1; border-color: #00897B; color: #00695C; }
+.checkbox-group input[type=checkbox] { display: none; }
+.radio-group { display: flex; gap: 16px; }
+.radio-group label { display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer; }
+table.parts { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+table.parts th { background: #e0f2f1; padding: 6px; text-align: left; font-size: 0.68rem; color: #00695C; }
+table.parts td { padding: 4px; border-bottom: 1px solid #eee; }
+table.parts input { width: 100%; padding: 5px; border: 1.5px solid #e0e0e0; border-radius: 4px; font-size: 0.8rem; }
+table.parts input:focus { border-color: #00897B; outline: none; }
+.sig-section { display: flex; gap: 12px; flex-wrap: wrap; }
+.sig-box { flex: 1; min-width: 180px; }
+.sig-box h4 { font-size: 0.72rem; color: #555; margin-bottom: 6px; text-transform: uppercase; }
+.sig-canvas { width: 100%; height: 90px; border: 1.5px dashed #ccc; border-radius: 6px; background: #fafafa; touch-action: none; cursor: crosshair; }
+.sig-box button { margin-top: 4px; font-size: 0.7rem; padding: 4px 10px; background: #eee; border: none; border-radius: 4px; cursor: pointer; }
+.photo-area { display: flex; flex-wrap: wrap; gap: 8px; }
+.photo-area img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1.5px solid #ddd; }
+.add-photo { width: 80px; height: 80px; border: 2px dashed #ccc; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: #aaa; cursor: pointer; }
+.add-photo:hover { border-color: #00897B; color: #00897B; }
+.btn-primary { display: block; width: 100%; padding: 14px; background: linear-gradient(135deg, #00695C, #00897B); color: #fff; border: none; border-radius: 10px; font-size: 1.05rem; font-weight: 600; cursor: pointer; margin-top: 8px; }
+.btn-primary:active { opacity: 0.9; transform: scale(0.98); }
+.btn-secondary { display: block; width: 100%; padding: 10px; background: #fff; color: #00897B; border: 1.5px solid #00897B; border-radius: 10px; font-size: 0.9rem; font-weight: 500; cursor: pointer; margin-top: 6px; }
+.list-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.list-item:active { background: #f5f5f5; }
+.list-item .meta { font-size: 0.75rem; color: #888; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.status-dot.synced { background: #4caf50; }
+.status-dot.pending { background: #ff9800; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 24px; border-radius: 25px; font-size: 0.85rem; z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.home-screen { display: none; }
+.form-screen { display: none; }
+.screen-active { display: block !important; }
+.empty-state { text-align: center; padding: 40px 20px; color: #999; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <span id="headerTitle">WIT Service Report</span>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <span class="badge" id="pendingBadge">0 pending</span>
+    <button onclick="showSettings()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:2px 6px;">⚙️</button>
+  </div>
+</div>
+
+<!-- HOME -->
+<div class="container home-screen screen-active" id="homeScreen">
+  <button class="btn-primary" onclick="showForm()">＋ New Service Report</button>
+  <div id="reportList" style="margin-top:12px;"></div>
+  <div class="empty-state" id="emptyState">No reports yet.<br>Tap "+ New Service Report" to start.</div>
+</div>
+
+<!-- FORM -->
+<div class="container form-screen" id="formScreen">
+  <div class="card">
+    <div class="row">
+      <div class="field" style="flex:0 0 140px;"><label>Report No</label><input type="text" id="reportNo" readonly placeholder="Auto-generated"></div>
+      <div class="field"><label>Date</label><input type="date" id="svcDate"></div>
+      <div class="field"><label>Working Hours</label><input type="text" id="workingHours" placeholder="e.g. 09:00-14:30"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Customer &amp; Machine</h3>
+    <div class="row">
+      <div class="field" style="flex:2"><label>Customer Name *</label><input type="text" id="custName" required></div>
+      <div class="field"><label>Contact Person</label><input type="text" id="contactPerson"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Service Personnel *</label><input type="text" id="svcPersonnel" required></div>
+      <div class="field"><label>Machine *</label><input type="text" id="machine" required></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Serial No</label><input type="text" id="serialNo"></div>
+      <div class="field"><label>Software Version</label><input type="text" id="swVersion"></div>
+      <div class="field">
+        <label>Under Warranty</label>
+        <div class="radio-group">
+          <label><input type="radio" name="warranty" value="YES"> YES</label>
+          <label><input type="radio" name="warranty" value="NO"> NO</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Type of Service *</h3>
+    <div class="checkbox-group" id="svcTypeGroup">
+      <label><input type="checkbox" value="INSTALLATION"> INSTALLATION</label>
+      <label><input type="checkbox" value="MAINTENANCE"> MAINTENANCE</label>
+      <label><input type="checkbox" value="INSPECTION"> INSPECTION</label>
+      <label><input type="checkbox" value="TROUBLESHOOT"> TROUBLESHOOT</label>
+      <label><input type="checkbox" value="OTHERS"> OTHERS</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Service Details</h3>
+    <div class="field"><label>Subject *</label><textarea id="subject" rows="2"></textarea></div>
+    <div class="field"><label>Countermeasure / Action *</label><textarea id="countermeasure" rows="5"></textarea></div>
+    <div class="field"><label>Remark</label><textarea id="remark" rows="2"></textarea></div>
+  </div>
+
+  <div class="card">
+    <h3>Parts</h3>
+    <table class="parts" id="partsTable">
+      <thead><tr><th>Description</th><th>Part No.</th><th>Qty</th><th>Free/Chrg</th><th>From</th><th></th></tr></thead>
+      <tbody id="partsTbody"></tbody>
+    </table>
+    <button class="btn-secondary" onclick="addPartRow()" style="font-size:0.8rem; padding:6px;">+ Add Part</button>
+  </div>
+
+  <div class="card">
+    <h3>After Sale Service Fee</h3>
+    <div class="row">
+      <div class="field">
+        <div class="radio-group">
+          <label><input type="radio" name="feeCharge" value="FREE"> FREE</label>
+          <label><input type="radio" name="feeCharge" value="CHARGE"> CHARGE</label>
+        </div>
+      </div>
+      <div class="field"><label>No. Personnel</label><input type="number" id="numPersonnel" min="0" value="1"></div>
+      <div class="field"><label>Hours</label><input type="number" id="svcHours" min="0" step="0.5"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Photos</h3>
+    <div class="photo-area" id="photoArea">
+      <label class="add-photo">＋<input type="file" accept="image/*" multiple capture="environment" style="display:none" onchange="addPhotos(this)"></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Signatures</h3>
+    <div class="sig-section">
+      <div class="sig-box">
+        <h4>Customer Sign</h4>
+        <canvas class="sig-canvas" id="sigCustomer" width="300" height="90"></canvas>
+        <button onclick="clearSig('sigCustomer')">Clear</button>
+        <label style="font-size:0.7rem;">Date</label><input type="date" id="sigCustDate" style="font-size:0.75rem;">
+      </div>
+      <div class="sig-box">
+        <h4>Service Sign</h4>
+        <canvas class="sig-canvas" id="sigService" width="300" height="90"></canvas>
+        <button onclick="clearSig('sigService')">Clear</button>
+        <label style="font-size:0.7rem;">Date</label><input type="date" id="sigSvcDate" style="font-size:0.75rem;">
+      </div>
+      <div class="sig-box">
+        <h4>Approve</h4>
+        <canvas class="sig-canvas" id="sigApprove" width="300" height="90"></canvas>
+        <button onclick="clearSig('sigApprove')">Clear</button>
+        <label style="font-size:0.7rem;">Date</label><input type="date" id="sigApproveDate" style="font-size:0.75rem;">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-primary" onclick="submitReport()">📄 Generate &amp; Download PDF</button>
+  <button class="btn-secondary" onclick="saveDraft()">💾 Save Draft</button>
+  <button class="btn-secondary" onclick="showHome()" style="color:#999; border-color:#ccc;">← Back to Reports</button>
+
+  <!-- Post-submit result -->
+  <div class="card" id="postSubmitCard" style="display:none; margin-top:12px; background:#e8f5e9; border:1.5px solid #4caf50;">
+    <h3 style="color:#2e7d32; border-color:#2e7d32;">✅ Report Generated</h3>
+    <p style="font-size:0.9rem; margin-bottom:8px;" id="postSubmitMsg"></p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button onclick="downloadLastPDF()" style="flex:1; padding:10px; background:#2e7d32; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">⬇ Download PDF Again</button>
+      <button onclick="openSharePoint()" style="flex:1; padding:10px; background:#0078d4; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">📁 Open SharePoint</button>
+    </div>
+    <p style="font-size:0.7rem; color:#666; margin-top:8px;">
+      💡 PDF saved to your Downloads folder.<br>
+      When back at office, upload to SharePoint or tap "Open SharePoint" above.
+    </p>
+  </div>
+
+  <div style="height:30px;"></div>
+</div>
+
+<!-- Settings overlay -->
+<div class="container" id="settingsScreen" style="display:none;">
+  <div class="card">
+    <h3>⚙️ Settings</h3>
+    <div class="field"><label>Default Personnel Name</label><input type="text" id="settingPersonnel" placeholder="Your name"></div>
+    <div class="field"><label>SharePoint Folder URL</label><input type="text" id="settingSharePoint" placeholder="https://xxx.sharepoint.com/sites/..."></div>
+    <button class="btn-primary" onclick="saveSettings()" style="font-size:0.9rem;">Save Settings</button>
+    <button class="btn-secondary" onclick="document.getElementById('settingsScreen').style.display='none'; showHome();">← Back</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+
+<script>
+// Suppress silent errors from CDN/cross-origin scripts
+window.onerror = function(msg, url, line, col, error) {
+  console.debug('App error:', msg, url, line);
+  return true; // prevent default
+};
+window.addEventListener('unhandledrejection', function(e) {
+  console.debug('Unhandled rejection:', e.reason);
+  e.preventDefault();
+});
+
+// ==================== DATABASE ====================
+const DB_NAME = 'wit_sr_db';
+const DB_VER = 1;
+let db;
+let sigPads = {};
+let editingDraftId = null;
+let photoDataUrls = [];
+let lastGeneratedDoc = null;
+let lastReportNo = '';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('reports')) d.createObjectStore('reports', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('settings')) d.createObjectStore('settings', { keyPath: 'key' });
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function saveReport(data) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('reports', 'readwrite');
+    tx.objectStore('reports').put(data);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function getAllReports() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('reports', 'readonly');
+    const req = tx.objectStore('reports').getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function getReport(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('reports', 'readonly');
+    const req = tx.objectStore('reports').get(id);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function deleteReport(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('reports', 'readwrite');
+    tx.objectStore('reports').delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function getNextCounter(dateStr) {
+  const key = 'counter_' + dateStr.replace(/-/g, '');
+  const tx = db.transaction('settings', 'readwrite');
+  const store = tx.objectStore('settings');
+  return new Promise((resolve) => {
+    const req = store.get(key);
+    req.onsuccess = () => {
+      const val = (req.result ? req.result.value : 0) + 1;
+      store.put({ key, value: val });
+      resolve(val);
+    };
+  });
+}
+
+// ==================== NAVIGATION ====================
+function showHome() {
+  document.getElementById('homeScreen').classList.add('screen-active');
+  document.getElementById('formScreen').classList.remove('screen-active');
+  document.getElementById('headerTitle').textContent = 'WIT Service Report';
+  editingDraftId = null;
+  loadReportList();
+}
+
+function showForm(draftId) {
+  document.getElementById('homeScreen').classList.remove('screen-active');
+  document.getElementById('formScreen').classList.add('screen-active');
+  document.getElementById('headerTitle').textContent = draftId ? 'Edit Draft' : 'New Report';
+  resetForm();
+  if (draftId) loadDraft(draftId);
+  else requestAnimationFrame(() => requestAnimationFrame(() => initSigPads()));
+}
+
+// ==================== FORM HELPERS ====================
+function resetForm() {
+  document.getElementById('reportNo').value = '';
+  document.getElementById('svcDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('workingHours').value = '';
+  document.getElementById('custName').value = '';
+  document.getElementById('contactPerson').value = '';
+  document.getElementById('svcPersonnel').value = localStorage.getItem('wit_default_personnel') || '';
+  document.getElementById('machine').value = '';
+  document.getElementById('serialNo').value = '';
+  document.getElementById('swVersion').value = '';
+  document.querySelectorAll('input[name=warranty]').forEach(r => r.checked = false);
+  document.querySelectorAll('#svcTypeGroup label').forEach(l => l.classList.remove('checked'));
+  document.querySelectorAll('#svcTypeGroup input[type=checkbox]').forEach(c => c.checked = false);
+  document.getElementById('subject').value = '';
+  document.getElementById('countermeasure').value = '';
+  document.getElementById('remark').value = '';
+  document.querySelectorAll('input[name=feeCharge]').forEach(r => r.checked = false);
+  document.getElementById('numPersonnel').value = '1';
+  document.getElementById('svcHours').value = '';
+  document.getElementById('sigCustDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('sigSvcDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('sigApproveDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('partsTbody').innerHTML = '';
+  document.querySelectorAll('#photoArea img:not(.add-photo)').forEach(el => el.parentElement?.remove());
+  photoDataUrls = [];
+  addPartRow();
+  editingDraftId = null;
+  document.getElementById('postSubmitCard').style.display = 'none';
+}
+
+function getFormData() {
+  const parts = [];
+  document.querySelectorAll('#partsTbody tr').forEach(row => {
+    const inputs = row.querySelectorAll('input[type=text], input[type=number]');
+    if (inputs[0] && inputs[0].value) {
+      parts.push({
+        desc: inputs[0]?.value || '',
+        partNo: inputs[1]?.value || '',
+        qty: inputs[2]?.value || '',
+        charge: row.querySelector('input[value=CHARGE]:checked') ? 'CHARGE' :
+                row.querySelector('input[value=FREE]:checked') ? 'FREE' : '',
+        from: inputs[4]?.value || ''
+      });
+    }
+  });
+  const svcTypes = [];
+  document.querySelectorAll('#svcTypeGroup input:checked').forEach(c => svcTypes.push(c.value));
+
+  return {
+    reportNo: document.getElementById('reportNo').value,
+    svcDate: document.getElementById('svcDate').value,
+    workingHours: document.getElementById('workingHours').value,
+    custName: document.getElementById('custName').value,
+    contactPerson: document.getElementById('contactPerson').value,
+    svcPersonnel: document.getElementById('svcPersonnel').value,
+    machine: document.getElementById('machine').value,
+    serialNo: document.getElementById('serialNo').value,
+    swVersion: document.getElementById('swVersion').value,
+    warranty: document.querySelector('input[name=warranty]:checked')?.value || '',
+    svcTypes,
+    subject: document.getElementById('subject').value,
+    countermeasure: document.getElementById('countermeasure').value,
+    remark: document.getElementById('remark').value,
+    parts,
+    feeCharge: document.querySelector('input[name=feeCharge]:checked')?.value || '',
+    numPersonnel: document.getElementById('numPersonnel').value,
+    svcHours: document.getElementById('svcHours').value,
+    sigCustDate: document.getElementById('sigCustDate').value,
+    sigSvcDate: document.getElementById('sigSvcDate').value,
+    sigApproveDate: document.getElementById('sigApproveDate').value,
+    sigCustomer: sigPads['sigCustomer'] ? sigPads['sigCustomer'].toDataURL() : '',
+    sigService: sigPads['sigService'] ? sigPads['sigService'].toDataURL() : '',
+    sigApprove: sigPads['sigApprove'] ? sigPads['sigApprove'].toDataURL() : '',
+  };
+}
+
+function fillForm(data) {
+  document.getElementById('reportNo').value = data.reportNo || '';
+  document.getElementById('svcDate').value = data.svcDate || '';
+  document.getElementById('workingHours').value = data.workingHours || '';
+  document.getElementById('custName').value = data.custName || '';
+  document.getElementById('contactPerson').value = data.contactPerson || '';
+  document.getElementById('svcPersonnel').value = data.svcPersonnel || '';
+  document.getElementById('machine').value = data.machine || '';
+  document.getElementById('serialNo').value = data.serialNo || '';
+  document.getElementById('swVersion').value = data.swVersion || '';
+  if (data.warranty) {
+    const wr = document.querySelector(`input[name=warranty][value="${data.warranty}"]`);
+    if (wr) wr.checked = true;
+  }
+  (data.svcTypes || []).forEach(t => {
+    const cb = document.querySelector(`#svcTypeGroup input[value="${t}"]`);
+    if (cb) { cb.checked = true; cb.parentElement.classList.add('checked'); }
+  });
+  document.getElementById('subject').value = data.subject || '';
+  document.getElementById('countermeasure').value = data.countermeasure || '';
+  document.getElementById('remark').value = data.remark || '';
+  if (data.feeCharge) {
+    const fc = document.querySelector(`input[name=feeCharge][value="${data.feeCharge}"]`);
+    if (fc) fc.checked = true;
+  }
+  document.getElementById('numPersonnel').value = data.numPersonnel || '1';
+  document.getElementById('svcHours').value = data.svcHours || '';
+  document.getElementById('sigCustDate').value = data.sigCustDate || new Date().toISOString().split('T')[0];
+  document.getElementById('sigSvcDate').value = data.sigSvcDate || new Date().toISOString().split('T')[0];
+  document.getElementById('sigApproveDate').value = data.sigApproveDate || new Date().toISOString().split('T')[0];
+  document.getElementById('partsTbody').innerHTML = '';
+  (data.parts || []).forEach(p => addPartRow(p));
+  if (!data.parts || data.parts.length === 0) addPartRow();
+}
+
+// ==================== SIGNATURES ====================
+function initSigPads() {
+  ['sigCustomer', 'sigService', 'sigApprove'].forEach(id => {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+
+    const previousData = sigPads[id] && !sigPads[id].isEmpty() ? sigPads[id].toDataURL() : null;
+    if (sigPads[id]) sigPads[id].destroy();
+
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.round(rect.width * ratio));
+    canvas.height = Math.max(1, Math.round(rect.height * ratio));
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(ratio, ratio);
+
+    sigPads[id] = new SignaturePad(canvas, {
+      penColor: 'rgb(0,0,0)',
+      minWidth: 1.2,
+      maxWidth: 2.4
+    });
+
+    if (previousData) {
+      try { sigPads[id].fromDataURL(previousData); } catch (e) {}
+    }
+  });
+}
+
+function clearSig(id) {
+  if (sigPads[id]) sigPads[id].clear();
+}
+
+// ==================== PARTS TABLE ====================
+function addPartRow(data) {
+  const tbody = document.getElementById('partsTbody');
+  const rowIdx = tbody.children.length;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" placeholder="Description" value="${data?.desc || ''}"></td>
+    <td><input type="text" placeholder="Part No." value="${data?.partNo || ''}"></td>
+    <td><input type="number" placeholder="Qty" value="${data?.qty || ''}" style="width:50px;"></td>
+    <td style="white-space:nowrap;font-size:0.68rem;">
+      <label><input type="radio" name="part${rowIdx}_chg" value="FREE" ${data?.charge==='FREE'?'checked':''}> F</label>
+      <label><input type="radio" name="part${rowIdx}_chg" value="CHARGE" ${data?.charge==='CHARGE'?'checked':''}> C</label>
+    </td>
+    <td><input type="text" placeholder="From" value="${data?.from || ''}"></td>
+    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:#f44336;font-size:1.2rem;cursor:pointer;">×</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+// ==================== PHOTOS ====================
+function addPhotos(input) {
+  Array.from(input.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      photoDataUrls.push(e.target.result);
+      renderPhotos();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderPhotos() {
+  const area = document.getElementById('photoArea');
+  area.querySelectorAll('img:not(.add-photo)').forEach(el => el.parentElement?.remove());
+  const keep = area.querySelectorAll('.add-photo');
+  const addBtn = keep.length ? keep[0] : null;
+  photoDataUrls.forEach((url, i) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'position:relative;display:inline-block;';
+    div.innerHTML = `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1.5px solid #ddd;">
+      <button onclick="removePhoto(${i})" style="position:absolute;top:-6px;right:-6px;background:#f44336;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;line-height:22px;">×</button>`;
+    area.insertBefore(div, addBtn);
+  });
+}
+
+function removePhoto(i) {
+  photoDataUrls.splice(i, 1);
+  renderPhotos();
+}
+
+// ==================== SAVE / LOAD DRAFT ====================
+async function saveDraft() {
+  const data = getFormData();
+  const id = editingDraftId || 'draft_' + Date.now();
+  data.id = id;
+  data.status = 'draft';
+  data.updatedAt = new Date().toISOString();
+  data.photos = photoDataUrls.slice();
+  await saveReport(data);
+  editingDraftId = id;
+  toast('Draft saved 💾');
+}
+
+async function loadDraft(id) {
+  const data = await getReport(id);
+  if (!data) return;
+  editingDraftId = id;
+  document.getElementById('homeScreen').classList.remove('screen-active');
+  document.getElementById('formScreen').classList.add('screen-active');
+  document.getElementById('headerTitle').textContent = 'Edit Report';
+  resetForm();
+  fillForm(data);
+  photoDataUrls = data.photos || [];
+  renderPhotos();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    initSigPads();
+    if (data.sigCustomer && sigPads['sigCustomer']) sigPads['sigCustomer'].fromDataURL(data.sigCustomer);
+    if (data.sigService && sigPads['sigService']) sigPads['sigService'].fromDataURL(data.sigService);
+    if (data.sigApprove && sigPads['sigApprove']) sigPads['sigApprove'].fromDataURL(data.sigApprove);
+  }));
+}
+
+// ==================== PDF GENERATION ====================
+const PDF_FONT_FAMILY = 'NotoSansThai';
+const PDF_FONT_URLS = {
+  normal: 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansThai/NotoSansThai-Regular.ttf',
+  bold: 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansThai/NotoSansThai-Bold.ttf'
+};
+let pdfFontPromise = null;
+let pdfFontData = null;
+
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function ensurePdfFonts() {
+  if (pdfFontData) return pdfFontData;
+  if (pdfFontPromise) return pdfFontPromise;
+
+  pdfFontPromise = Promise.all([
+    fetch(PDF_FONT_URLS.normal),
+    fetch(PDF_FONT_URLS.bold)
+  ])
+    .then(([regularRes, boldRes]) => Promise.all([regularRes.arrayBuffer(), boldRes.arrayBuffer()]))
+    .then(([regularBuf, boldBuf]) => {
+      pdfFontData = {
+        regular: arrayBufferToBase64(regularBuf),
+        bold: arrayBufferToBase64(boldBuf)
+      };
+      return pdfFontData;
+    })
+    .catch(err => {
+      pdfFontPromise = null;
+      throw err;
+    });
+
+  return pdfFontPromise;
+}
+
+async function imageToDataUrl(src) {
+  const response = await fetch(`${src}?v=logo12`, { cache: 'reload' });
+  if (!response.ok) throw new Error(`Image load failed: ${src}`);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function generatePDF(data) {
+  const [fontData, companyLogo] = await Promise.all([
+    ensurePdfFonts(),
+    imageToDataUrl('./new-logo-wit-pdf.jpg').catch(() => null)
+  ]);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  if (!doc.getFontList()[PDF_FONT_FAMILY]) {
+    doc.addFileToVFS('NotoSansThai-Regular.ttf', fontData.regular);
+    doc.addFileToVFS('NotoSansThai-Bold.ttf', fontData.bold);
+    doc.addFont('NotoSansThai-Regular.ttf', PDF_FONT_FAMILY, 'normal');
+    doc.addFont('NotoSansThai-Bold.ttf', PDF_FONT_FAMILY, 'bold');
+  }
+  const W = 210;
+
+  function hasThai(text) {
+    return /[\u0E00-\u0E7F]/.test(String(text || ''));
+  }
+
+  function textRuns(text) {
+    return String(text || '').match(/[\u0E00-\u0E7F]+|[^\u0E00-\u0E7F]+/g) || [];
+  }
+
+  function useRunFont(run, style = 'normal') {
+    doc.setFont(hasThai(run) ? PDF_FONT_FAMILY : 'helvetica', style);
+  }
+
+  function pdfValue(text, x, y, options = {}) {
+    const value = String(text || '');
+    if (!value) return;
+    if (options.align || options.maxWidth) {
+      useRunFont(value, 'normal');
+      doc.text(value, x, y, options);
+      return;
+    }
+    let cursorX = x;
+    textRuns(value).forEach(run => {
+      useRunFont(run, 'normal');
+      doc.text(run, cursorX, y);
+      cursorX += doc.getTextWidth(run);
+    });
+  }
+
+  function pdfValueLines(text, x, y, maxWidth) {
+    const value = String(text || '');
+    if (!value) return;
+    const words = value.split(/(\s+)/);
+    const lines = [];
+    let line = '';
+    words.forEach(word => {
+      const test = line + word;
+      const width = textRuns(test).reduce((sum, run) => {
+        useRunFont(run, 'normal');
+        return sum + doc.getTextWidth(run);
+      }, 0);
+      if (width > maxWidth && line.trim()) {
+        lines.push(line.trimEnd());
+        line = word.trimStart();
+      } else {
+        line = test;
+      }
+    });
+    if (line.trim()) lines.push(line.trimEnd());
+    lines.forEach((lineText, i) => pdfValue(lineText, x, y + i * 4));
+  }
+
+  // Paper-form layout matched to original scanned service report
+  doc.setDrawColor(0);
+  doc.setTextColor(0);
+  doc.setLineWidth(0.35);
+
+  function label(text, x, y, size = 7.2) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(size);
+    doc.text(text, x, y);
+  }
+
+  function value(text, x, y, max = 45, size = 6.4) {
+    if (!text) return;
+    doc.setFontSize(size);
+    pdfValue(String(text).substring(0, max), x, y);
+  }
+
+  function checkBox(x, y, checked) {
+    doc.rect(x, y - 2.6, 2.8, 2.8);
+    if (checked) {
+      doc.setLineWidth(0.3);
+      doc.line(x + 0.5, y - 1.2, x + 1.2, y - 0.2);
+      doc.line(x + 1.2, y - 0.2, x + 2.4, y - 2.1);
+      doc.setLineWidth(0.35);
+    }
+  }
+
+  function sectionText(text, x, y, width, maxChars = 450) {
+    if (!text) return;
+    doc.setFontSize(6.2);
+    pdfValueLines(String(text).substring(0, maxChars), x, y, width);
+  }
+
+  const L = 3;
+  const R = 207;
+  const TW = R - L;
+
+  // HEADER - no outer page border, like original
+  if (companyLogo) {
+    try {
+      // Real company logo supplied by user. Preserve aspect ratio; crop-like white margins are already in source.
+      doc.addImage(companyLogo, 'JPEG', 6, 5, 35, 15);
+    } catch (e) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor('#00A887');
+      doc.setFontSize(9);
+      doc.text('WIT', 12, 17);
+    }
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor('#00A887');
+    doc.setFontSize(9);
+    doc.text('WIT', 12, 17);
+  }
+  doc.setTextColor(0);
+  doc.setFontSize(17);
+  doc.text('SERVICE REPORT', W / 2, 17, { align: 'center' });
+  doc.setFontSize(7.2);
+  doc.text('REPORT NO :', 166, 8);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.6);
+  doc.text(data.reportNo || '', W - 4, 8, { align: 'right' });
+
+  // Top information table
+  let y = 22;
+  const leftW = 123;
+  const rightX = L + leftW;
+  const row = 5.5;
+  const topH = row * 6;
+  doc.rect(L, y, TW, topH);
+  doc.line(rightX, y, rightX, y + topH);
+  for (let i = 1; i < 6; i++) doc.line(L, y + row * i, rightX, y + row * i);
+  doc.line(L + 72, y + row * 2, L + 72, y + row * 3);
+  doc.line(L + 72, y + row * 4, L + 72, y + row * 5);
+
+  // Right company and warranty blocks
+  doc.line(rightX, y + row * 4, R, y + row * 4);
+  doc.line(rightX + 36, y + row * 4, rightX + 36, y + topH);
+  doc.line(rightX + 58, y + row * 4, rightX + 58, y + topH);
+
+  const b1 = y + 4.1;
+  const b2 = y + row + 4.1;
+  const b3 = y + row * 2 + 4.1;
+  const b4 = y + row * 3 + 4.1;
+  const b5 = y + row * 4 + 4.1;
+  const b6 = y + row * 5 + 4.1;
+
+  label('CUSTOMER NAME :', L + 1, b1); value(data.custName, L + 43, b1, 40);
+  label('CONTACT PERSON :', L + 1, b2); value(data.contactPerson, L + 43, b2, 40);
+  label('DATE :', L + 1, b3); value(data.svcDate, L + 25, b3, 18);
+  label('WORKING HOURS :', L + 73, b3); value(data.workingHours, L + 112, b3, 16);
+  label('SERVICE PERSONNEL :', L + 1, b4); value(data.svcPersonnel, L + 48, b4, 35);
+  label('MACHINE :', L + 1, b5); value(data.machine, L + 25, b5, 22);
+  label('SERIAL NO :', L + 73, b5); value(data.serialNo, L + 100, b5, 18);
+  label('SOFTWARE VERSION :', L + 1, b6); value(data.swVersion, L + 48, b6, 35);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.4);
+  doc.text('WIT (THAILAND) CO.,LTD.', rightX + 41, y + 6.3, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.2);
+  doc.text('160/842-845, ITF-Silom Palace 32 Floor, Silom Rd, Suriya Wong,', rightX + 41, y + 11.2, { align: 'center' });
+  doc.text('Bangrak, Bangkok 10500 THAILAND', rightX + 41, y + 15.5, { align: 'center' });
+  doc.text('Email: sales_th@witjpn.com  Tel: (+66)2-237-2479', rightX + 41, y + 19.7, { align: 'center' });
+
+  label('UNDER WARRANTY :', rightX + 4, y + row * 5 + 1.4, 6.8);
+  checkBox(rightX + 43, y + row * 5 + 1.1, data.warranty === 'YES');
+  label('YES', rightX + 48, y + row * 5 + 1.5, 6.5);
+  checkBox(rightX + 66, y + row * 5 + 1.1, data.warranty === 'NO');
+  label('NO', rightX + 71, y + row * 5 + 1.5, 6.5);
+
+  // Type of service
+  y += topH;
+  const typeH = 9;
+  doc.rect(L, y, TW, typeH);
+  label('TYPE OF SERVICE :', L + 1, y + 6.0, 7.2);
+  const svcLabels = ['INSTALLATION', 'MAINTENANCE', 'INSPECTION', 'TROUBLESHOOT', 'OTHERS'];
+  const svcXs = [29, 58, 87, 115, 151];
+  svcLabels.forEach((name, i) => {
+    const checked = (data.svcTypes || []).includes(name);
+    checkBox(svcXs[i], y + 5.9, checked);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text(name, svcXs[i] + 4, y + 6.2);
+  });
+
+  // Subject
+  y += typeH;
+  const subjectH = 16;
+  doc.rect(L, y, TW, subjectH);
+  label('SUBJECT :', L + 1, y + 5.3);
+  sectionText(data.subject, L + 2, y + 10.5, TW - 5, 120);
+
+  // Countermeasure large area
+  y += subjectH;
+  const counterH = 122;
+  doc.rect(L, y, TW, counterH);
+  label('COUNTERMEASURE / ACTION :', L + 1, y + 5.3);
+  sectionText(data.countermeasure, L + 2, y + 10.5, TW - 5, 900);
+
+  // Remark
+  y += counterH;
+  const remarkH = 37;
+  doc.rect(L, y, TW, remarkH);
+  label('REMARK :', L + 1, y + 5.3);
+  sectionText(data.remark, L + 2, y + 10.5, TW - 5, 220);
+
+  // Parts table, 3 rows like original
+  y += remarkH;
+  const colW = [72, 28, 22, 36, 46];
+  const partRowH = 4.8;
+  const partHeadH = 5.0;
+  const partX = [L, L + colW[0], L + colW[0] + colW[1], L + colW[0] + colW[1] + colW[2], L + colW[0] + colW[1] + colW[2] + colW[3], R];
+  doc.rect(L, y, TW, partHeadH + partRowH * 3);
+  for (let i = 1; i < partX.length - 1; i++) doc.line(partX[i], y, partX[i], y + partHeadH + partRowH * 3);
+  doc.line(L, y + partHeadH, R, y + partHeadH);
+  for (let i = 1; i < 3; i++) doc.line(L, y + partHeadH + partRowH * i, R, y + partHeadH + partRowH * i);
+  ['PARTS DESCRIPTION', 'PART NO.', 'QTY', 'CHARGES', 'FROM'].forEach((h, i) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.3);
+    doc.text(h, (partX[i] + partX[i + 1]) / 2, y + 3.6, { align: 'center' });
+  });
+  const parts = data.parts || [];
+  for (let i = 0; i < 3; i++) {
+    const p = parts[i] || {};
+    const ry = y + partHeadH + partRowH * i + 3.5;
+    value(p.desc || '', partX[0] + 1, ry, 28, 5.8);
+    value(p.partNo || '', partX[1] + 1, ry, 16, 5.8);
+    value((p.qty || '').toString(), partX[2] + 1, ry, 6, 5.8);
+    checkBox(partX[3] + 1, ry - 0.2, p.charge === 'FREE');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.2); doc.text('FREE', partX[3] + 5, ry);
+    checkBox(partX[3] + 15, ry - 0.2, p.charge === 'CHARGE');
+    doc.text('CHARGE', partX[3] + 19, ry);
+    value(p.from || '', partX[4] + 1, ry, 18, 5.8);
+  }
+
+  // Fee row
+  y += partHeadH + partRowH * 3;
+  const feeH = 6;
+  doc.rect(L, y, TW, feeH);
+  doc.line(L + 99, y, L + 99, y + feeH);
+  label('AFTER SALE SERVICE FEE :', L + 1, y + 4.3, 6.8);
+  checkBox(L + 40, y + 4.1, data.feeCharge === 'FREE'); label('FREE', L + 44, y + 4.4, 6.3);
+  checkBox(L + 53, y + 4.1, data.feeCharge === 'CHARGE'); label('CHARGE', L + 57, y + 4.4, 6.3);
+  label('NO. PERSONNEL (', L + 101, y + 4.3, 6.8);
+  value(data.numPersonnel, L + 132, y + 4.3, 4, 6.4);
+  label(') HOURS (', L + 144, y + 4.3, 6.8);
+  value(data.svcHours, L + 164, y + 4.3, 5, 6.4);
+  label(')', L + 185, y + 4.3, 6.8);
+
+  // Signatures, header row + signature boxes like original
+  y += feeH;
+  const sigHeaderH = 5;
+  const sigH = 19;
+  const sigW = TW / 3;
+  doc.rect(L, y, TW, sigHeaderH + sigH);
+  doc.line(L + sigW, y, L + sigW, y + sigHeaderH + sigH);
+  doc.line(L + sigW * 2, y, L + sigW * 2, y + sigHeaderH + sigH);
+  doc.line(L, y + sigHeaderH, R, y + sigHeaderH);
+  ['CUSTOMER SIGN', 'SERVICE SIGN', 'APPOVE'].forEach((h, i) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.text(h, L + sigW * i + sigW / 2, y + 3.7, { align: 'center' });
+  });
+  ['sigCustomer', 'sigService', 'sigApprove'].forEach((key, i) => {
+    const sigData = data[key];
+    const sx = L + sigW * i;
+    if (sigData && sigData.startsWith('data:image')) {
+      try { doc.addImage(sigData, 'PNG', sx + 8, y + sigHeaderH + 2, sigW - 16, 9); } catch(e) {}
+    }
+    const sigDate = i === 0 ? data.sigCustDate : (i === 1 ? data.sigSvcDate : data.sigApproveDate);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.text('DATE:', sx + 1, y + sigHeaderH + sigH - 1.8);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(5.8);
+    if (sigDate) doc.text(sigDate, sx + 12, y + sigHeaderH + sigH - 1.8);
+  });
+
+  // Footer
+  y += sigHeaderH + sigH;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.setTextColor(0);
+  doc.text("CUSTOMER'S COPY (WHITE) / OFFICE COPY (YELLOW) / ENGINEER COPY (BLUE)", W / 2, y + 4, { align: 'center' });
+
+  // PHOTOS PAGE
+  if (photoDataUrls.length > 0) {
+    doc.addPage();
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text('Attached Photos', 14, 12);
+
+    let px = 14, py = 20;
+    const tw = 55, th = 41;
+    for (let i = 0; i < photoDataUrls.length; i++) {
+      if (px + tw > W - 14) { px = 14; py += th + 10; }
+      if (py + th > 280) { doc.addPage(); py = 14; px = 14; }
+      try { doc.addImage(photoDataUrls[i], 'JPEG', px, py, tw, th); } catch(e) { doc.text(`[Photo ${i+1}]`, px, py + 10); }
+      doc.setFontSize(6);
+      doc.text(`Photo ${i+1}`, px, py + th + 3);
+      px += tw + 4;
+    }
+  }
+
+  return doc;
+}
+
+// ==================== SUBMIT ====================
+async function submitReport() {
+  const data = getFormData();
+  if (!data.custName) return toast('⚠️ Please fill Customer Name');
+  if (!data.svcPersonnel) return toast('⚠️ Please fill Service Personnel');
+  if (!data.machine) return toast('⚠️ Please fill Machine');
+  if (data.svcTypes.length === 0) return toast('⚠️ Please select Type of Service');
+  if (!data.subject) return toast('⚠️ Please fill Subject');
+  if (!data.countermeasure) return toast('⚠️ Please fill Countermeasure');
+  if (!sigPads['sigCustomer'] || sigPads['sigCustomer'].isEmpty()) return toast('⚠️ Customer signature required');
+  if (!sigPads['sigService'] || sigPads['sigService'].isEmpty()) return toast('⚠️ Service signature required');
+  if (!sigPads['sigApprove'] || sigPads['sigApprove'].isEmpty()) return toast('⚠️ Approve signature required');
+
+  const dateStr = data.svcDate || new Date().toISOString().split('T')[0];
+  const counter = await getNextCounter(dateStr);
+  data.reportNo = `WIT-SR-${dateStr.replace(/-/g, '')}-${String(counter).padStart(3, '0')}`;
+  document.getElementById('reportNo').value = data.reportNo;
+
+  const id = editingDraftId || 'sr_' + Date.now();
+  data.id = id;
+  data.status = 'completed';
+  data.updatedAt = new Date().toISOString();
+  data.photos = photoDataUrls.slice();
+  await saveReport(data);
+  if (data.svcPersonnel) localStorage.setItem('wit_default_personnel', data.svcPersonnel);
+
+  toast('Generating PDF...');
+  try {
+    const doc = await generatePDF(data);
+    lastGeneratedDoc = doc;
+    lastReportNo = data.reportNo;
+    doc.save(`${data.reportNo}.pdf`);
+    
+    // Show post-submit card
+    document.getElementById('postSubmitMsg').textContent = `Report ${data.reportNo} was generated and downloaded.`;
+    document.getElementById('postSubmitCard').style.display = 'block';
+    
+    toast(`✅ ${data.reportNo} saved!`);
+  } catch(e) {
+    toast('❌ PDF error: ' + e.message);
+    return;
+  }
+
+  photoDataUrls = [];
+  editingDraftId = null;
+  setTimeout(() => showHome(), 600);
+}
+
+// ==================== SHAREPOINT ====================
+function downloadLastPDF() {
+  if (lastGeneratedDoc) {
+    lastGeneratedDoc.save(`${lastReportNo}.pdf`);
+    toast('PDF downloaded again ✅');
+  } else {
+    toast('No PDF in memory. Please re-generate.');
+  }
+}
+
+function openSharePoint() {
+  const url = localStorage.getItem('wit_sharepoint_url');
+  if (!url) {
+    toast('⚠️ Set SharePoint URL in Settings first');
+    document.getElementById('settingsScreen').style.display = 'block';
+    document.getElementById('homeScreen').classList.remove('screen-active');
+    document.getElementById('formScreen').classList.remove('screen-active');
+    return;
+  }
+  window.open(url, '_blank');
+  toast('Opening SharePoint...');
+}
+
+// ==================== SETTINGS ====================
+function showSettings() {
+  document.getElementById('homeScreen').classList.remove('screen-active');
+  document.getElementById('formScreen').classList.remove('screen-active');
+  document.getElementById('settingsScreen').style.display = 'block';
+  document.getElementById('headerTitle').textContent = '⚙️ Settings';
+  document.getElementById('settingPersonnel').value = localStorage.getItem('wit_default_personnel') || '';
+  document.getElementById('settingSharePoint').value = localStorage.getItem('wit_sharepoint_url') || '';
+}
+
+function saveSettings() {
+  const name = document.getElementById('settingPersonnel').value.trim();
+  const spUrl = document.getElementById('settingSharePoint').value.trim();
+  if (name) localStorage.setItem('wit_default_personnel', name);
+  if (spUrl) localStorage.setItem('wit_sharepoint_url', spUrl);
+  document.getElementById('settingsScreen').style.display = 'none';
+  toast('Settings saved ✅');
+  showHome();
+}
+
+// ==================== REPORT LIST ====================
+async function loadReportList() {
+  const reports = await getAllReports();
+  const list = document.getElementById('reportList');
+  const empty = document.getElementById('emptyState');
+  const badge = document.getElementById('pendingBadge');
+  const pending = reports.filter(r => r.status === 'draft');
+  badge.textContent = pending.length + ' draft' + (pending.length !== 1 ? 's' : '');
+  badge.style.display = pending.length > 0 ? 'inline' : 'none';
+  if (reports.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  reports.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  list.innerHTML = reports.map(r => `
+    <div class="list-item" onclick="openReport('${r.id}')">
+      <div>
+        <strong>${r.reportNo || '(Draft)'}</strong>
+        <div style="font-size:0.82rem;">${r.custName || 'No customer'} — ${r.machine || ''}</div>
+        <div class="meta">${r.svcDate || ''} • ${r.svcPersonnel || ''}</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="status-dot ${r.status === 'completed' ? 'synced' : 'pending'}"></span>
+        <span style="font-size:0.7rem;color:#888;">${r.status}</span>
+        <button onclick="event.stopPropagation();deleteThis('${r.id}')" style="display:block;background:none;border:none;color:#f44336;font-size:0.7rem;cursor:pointer;margin-top:4px;">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function openReport(id) {
+  await loadDraft(id);
+}
+
+async function deleteThis(id) {
+  if (!confirm('Delete this report?')) return;
+  await deleteReport(id);
+  loadReportList();
+  toast('Report deleted');
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+document.getElementById('svcTypeGroup').addEventListener('change', (e) => {
+  if (e.target.type === 'checkbox') e.target.parentElement.classList.toggle('checked', e.target.checked);
+});
+
+async function init() {
+  await openDB();
+  loadReportList();
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('svcDate').value = today;
+  document.getElementById('sigCustDate').value = today;
+  document.getElementById('sigSvcDate').value = today;
+  document.getElementById('sigApproveDate').value = today;
+}
+
+window.addEventListener('load', init);
+window.addEventListener('resize', () => {
+  clearTimeout(window.__sigResizeTimer);
+  window.__sigResizeTimer = setTimeout(() => {
+    if (document.getElementById('formScreen').style.display !== 'none') initSigPads();
+  }, 120);
+});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
