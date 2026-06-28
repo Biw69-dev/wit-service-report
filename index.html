@@ -396,10 +396,29 @@ async function sbGetAllReports() {
   }));
 }
 
+function getDeletedReportIds() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem('wit_deleted_report_ids') || '[]'));
+  } catch(e) {
+    return new Set();
+  }
+}
+
+function markReportDeleted(id) {
+  const ids = getDeletedReportIds();
+  ids.add(id);
+  localStorage.setItem('wit_deleted_report_ids', JSON.stringify(Array.from(ids)));
+}
+
 function mergeReports(cloudReports, localReports) {
+  const deletedIds = getDeletedReportIds();
   const byId = new Map();
-  (localReports || []).forEach(r => byId.set(r.id, r));
-  (cloudReports || []).forEach(r => byId.set(r.id, r));
+  (localReports || []).forEach(r => {
+    if (!deletedIds.has(r.id)) byId.set(r.id, r);
+  });
+  (cloudReports || []).forEach(r => {
+    if (!deletedIds.has(r.id)) byId.set(r.id, r);
+  });
   return Array.from(byId.values());
 }
 
@@ -410,8 +429,16 @@ async function sbGetReport(id) {
 }
 
 async function sbDeleteReport(id) {
-  const { error } = await sb.from('reports').delete().eq('id', id);
-  if (error) console.error('Supabase delete error:', error.message);
+  const { error, count } = await sb.from('reports').delete({ count: 'exact' }).eq('id', id);
+  if (error) {
+    console.error('Supabase delete error:', error.message);
+    throw new Error('Supabase: ' + error.message);
+  }
+  if (count === 0) {
+    // RLS may have silently blocked the delete
+    console.warn('Supabase delete returned 0 rows for id:', id);
+    throw new Error('RLS blocked delete');
+  }
 }
 
 async function sbGetNextCounter(dateStr) {
@@ -1206,14 +1233,19 @@ async function openReport(id) {
 
 async function deleteThis(id) {
   if (!confirm('Delete this report?')) return;
+  markReportDeleted(id);
+  let cloudDeleted = true;
   try {
     await deleteReport(id);    // local cache
   } catch(e) { console.error('Local delete failed:', e); }
   try {
     await sbDeleteReport(id);  // cloud
-  } catch(e) { console.error('Cloud delete failed:', e); }
+  } catch(e) {
+    console.error('Cloud delete failed:', e);
+    cloudDeleted = false;
+  }
   await loadReportList();
-  toast('Report deleted');
+  toast(cloudDeleted ? 'Report deleted' : 'Deleted locally ⚠️ (cloud sync failed)');
 }
 
 function toast(msg) {
