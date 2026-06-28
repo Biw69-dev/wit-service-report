@@ -360,14 +360,18 @@ async function sbSaveReport(data) {
     updated_at: new Date().toISOString()
   };
   const { error } = await sb.from('reports').upsert(row);
-  if (error) console.error('Supabase save error:', error.message);
+  if (error) {
+    console.error('Supabase save error:', error.message);
+    return false;
+  }
+  return true;
 }
 
 async function sbGetAllReports() {
   const { data, error } = await sb.from('reports')
     .select('id, report_no, status, data, created_by, updated_at')
     .order('updated_at', { ascending: false });
-  if (error) { console.error('Supabase load error:', error.message); return []; }
+  if (error) { console.error('Supabase load error:', error.message); return null; }
   return (data || []).map(r => ({
     id: r.id,
     ...r.data,
@@ -376,6 +380,13 @@ async function sbGetAllReports() {
     updatedAt: r.updated_at,
     createdBy: r.created_by
   }));
+}
+
+function mergeReports(cloudReports, localReports) {
+  const byId = new Map();
+  (localReports || []).forEach(r => byId.set(r.id, r));
+  (cloudReports || []).forEach(r => byId.set(r.id, r));
+  return Array.from(byId.values());
 }
 
 async function sbGetReport(id) {
@@ -621,9 +632,9 @@ async function saveDraft() {
   data.updatedAt = new Date().toISOString();
   data.photos = photoDataUrls.slice();
   await saveReport(data);          // local cache
-  await sbSaveReport(data);        // cloud sync
+  const cloudSaved = await sbSaveReport(data);        // cloud sync
   editingDraftId = id;
-  toast('Draft saved 💾');
+  toast(cloudSaved ? 'Draft saved 💾' : 'Draft saved locally ⚠️ Cloud sync failed');
 }
 
 async function loadDraft(id) {
@@ -1110,7 +1121,11 @@ function saveSettings() {
 
 // ==================== REPORT LIST ====================
 async function loadReportList() {
-  const reports = await sbGetAllReports();
+  const [cloudReports, localReports] = await Promise.all([
+    sbGetAllReports(),
+    getAllReports().catch(() => [])
+  ]);
+  const reports = mergeReports(cloudReports || [], localReports || []);
   const list = document.getElementById('reportList');
   const empty = document.getElementById('emptyState');
   const badge = document.getElementById('pendingBadge');
