@@ -1,7 +1,5 @@
-const CACHE = 'wit-sr-v14';
+const CACHE = 'wit-sr-v15';
 const ASSETS = [
-  './',
-  './index.html',
   './manifest.json',
   './new-logo-wit-pdf.jpg',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
@@ -10,7 +8,7 @@ const ASSETS = [
   'https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/hinted/ttf/NotoSansThai/NotoSansThai-Bold.ttf'
 ];
 
-// Install: cache app shell
+// Install: cache static assets only. Do not pre-cache index.html; it must update immediately.
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE).then(cache => cache.addAll(ASSETS).catch(() => {}))
@@ -18,41 +16,47 @@ self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// Activate: clean old caches and take control immediately.
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then(keys => 
+    caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     )
   );
   self.clients.claim();
 });
 
-// Fetch: cache-first for app shell, network-first for everything else
+// Fetch: network-first for app HTML, cache-first for static assets.
 self.addEventListener('fetch', (e) => {
-  // Don't cache IndexedDB requests
+  if (e.request.method !== 'GET') return;
   if (e.request.url.includes('indexeddb') || e.request.url.includes('chrome-extension')) return;
+
+  const url = new URL(e.request.url);
+  const isAppPage = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
+
+  if (isAppPage) {
+    e.respondWith(
+      fetch(e.request, { cache: 'no-store' })
+        .then(response => {
+          const clone = response.clone();
+          caches.open(CACHE).then(cache => cache.put('./index.html', clone));
+          return response;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
 
   e.respondWith(
     caches.match(e.request).then(cached => {
-      // Return cached if available (offline support)
       if (cached) return cached;
-
-      // Try network
       return fetch(e.request).then(response => {
-        // Cache successful GET responses
-        if (response.ok && e.request.method === 'GET') {
+        if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE).then(cache => cache.put(e.request, clone));
         }
         return response;
-      }).catch(() => {
-        // Offline fallback for navigation
-        if (e.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-        return new Response('Offline', { status: 408 });
-      });
+      }).catch(() => new Response('Offline', { status: 408 }));
     })
   );
 });
