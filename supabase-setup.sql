@@ -75,3 +75,13 @@ CREATE POLICY "wit_files_delete" ON storage.objects FOR DELETE TO authenticated 
 
 -- ✅ เสร็จแล้ว! ไปสร้าง user ต่อ:
 --    Authentication → Users → Add user → ใส่ email + password → Create
+
+-- 9. Atomic increment function สำหรับ report counter (กันเลขซ้ำเมื่อ submit พร้อมกัน)
+--    รันใน Supabase SQL Editor → New query → วาง → Run
+CREATE OR REPLACE FUNCTION atomic_increment(k TEXT, OUT new_val INTEGER) AS $$
+BEGIN
+  INSERT INTO settings (key, value) VALUES (k, 1)
+    ON CONFLICT (key) DO UPDATE SET value = settings.value + 1
+    RETURNING value INTO new_val;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

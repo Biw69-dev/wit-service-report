@@ -276,8 +276,8 @@ table.parts .parts-charge-cell input[type=radio] { width: auto; padding: 0; marg
 <script>
 // Suppress silent errors from CDN/cross-origin scripts
 window.onerror = function(msg, url, line, col, error) {
-  console.debug('App error:', msg, url, line);
-  return true; // prevent default
+  console.warn('App error:', msg, url, line);
+  return false; // let browser still log to console
 };
 window.addEventListener('unhandledrejection', function(e) {
   console.debug('Unhandled rejection:', e.reason);
@@ -456,23 +456,37 @@ async function sbDeleteReport(id) {
 }
 
 async function sbGetNextCounter(dateStr) {
-  // Get current count for this date atomically via RPC or client-side
   const key = 'counter_' + dateStr.replace(/-/g, '');
-  const { data } = await sb.from('settings').select('value').eq('key', key).single();
-  const next = (data?.value || 0) + 1;
-  await sb.from('settings').upsert({ key, value: next });
-  return next;
+  const { data, error } = await sb.rpc('atomic_increment', { k: key });
+  if (error) {
+    console.error('Counter RPC failed:', error.message);
+    // Fallback: local counter (offline mode)
+    return getNextCounter(dateStr);
+  }
+  return data ?? 1;
 }
 
 // ==================== SUPABASE STORAGE ====================
 function safeStorageName(value) {
-  return String(value || 'file').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'file';
+  const str = String(value || 'file');
+  if (str.includes('..')) return 'file';
+  return str.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'file';
 }
 
 function dataUrlToBlob(dataUrl) {
-  const [header, base64] = dataUrl.split(',');
+  if (typeof dataUrl !== 'string' || !dataUrl.includes(',')) {
+    throw new Error('Invalid data URL format');
+  }
+  const commaIdx = dataUrl.indexOf(',');
+  const header = dataUrl.substring(0, commaIdx);
+  const base64 = dataUrl.substring(commaIdx + 1);
   const mime = (header.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
-  const binary = atob(base64 || '');
+  let binary;
+  try {
+    binary = atob(base64);
+  } catch (e) {
+    throw new Error('Invalid base64 in data URL: ' + e.message);
+  }
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return new Blob([bytes], { type: mime });
@@ -737,17 +751,76 @@ function addPartRow(data) {
   const tbody = document.getElementById('partsTbody');
   const rowIdx = tbody.children.length;
   const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td><input type="text" placeholder="Description" value="${data?.desc || ''}"></td>
-    <td><input type="text" placeholder="Part No." value="${data?.partNo || ''}"></td>
-    <td><input type="number" placeholder="Qty" value="${data?.qty || ''}" style="width:50px;"></td>
-    <td class="parts-charge-cell">
-      <label><input type="radio" name="part${rowIdx}_chg" value="FREE" ${data?.charge==='FREE'?'checked':''}> Free</label>
-      <label><input type="radio" name="part${rowIdx}_chg" value="CHARGE" ${data?.charge==='CHARGE'?'checked':''}> Chrg</label>
-    </td>
-    <td><input type="text" placeholder="From" value="${data?.from || ''}"></td>
-    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:#f44336;font-size:1.2rem;cursor:pointer;">×</button></td>
-  `;
+
+  // Cell 1: Description
+  const td1 = document.createElement('td');
+  const inpDesc = document.createElement('input');
+  inpDesc.type = 'text';
+  inpDesc.placeholder = 'Description';
+  inpDesc.value = data?.desc || '';
+  td1.appendChild(inpDesc);
+  tr.appendChild(td1);
+
+  // Cell 2: Part No.
+  const td2 = document.createElement('td');
+  const inpPartNo = document.createElement('input');
+  inpPartNo.type = 'text';
+  inpPartNo.placeholder = 'Part No.';
+  inpPartNo.value = data?.partNo || '';
+  td2.appendChild(inpPartNo);
+  tr.appendChild(td2);
+
+  // Cell 3: Qty
+  const td3 = document.createElement('td');
+  const inpQty = document.createElement('input');
+  inpQty.type = 'number';
+  inpQty.placeholder = 'Qty';
+  inpQty.value = data?.qty || '';
+  inpQty.style.width = '50px';
+  td3.appendChild(inpQty);
+  tr.appendChild(td3);
+
+  // Cell 4: Charge (FREE/CHARGE radio)
+  const td4 = document.createElement('td');
+  td4.className = 'parts-charge-cell';
+  const lblFree = document.createElement('label');
+  const radFree = document.createElement('input');
+  radFree.type = 'radio';
+  radFree.name = 'part' + rowIdx + '_chg';
+  radFree.value = 'FREE';
+  if (data?.charge === 'FREE') radFree.checked = true;
+  lblFree.appendChild(radFree);
+  lblFree.appendChild(document.createTextNode(' Free'));
+  td4.appendChild(lblFree);
+  const lblChrg = document.createElement('label');
+  const radChrg = document.createElement('input');
+  radChrg.type = 'radio';
+  radChrg.name = 'part' + rowIdx + '_chg';
+  radChrg.value = 'CHARGE';
+  if (data?.charge === 'CHARGE') radChrg.checked = true;
+  lblChrg.appendChild(radChrg);
+  lblChrg.appendChild(document.createTextNode(' Chrg'));
+  td4.appendChild(lblChrg);
+  tr.appendChild(td4);
+
+  // Cell 5: From
+  const td5 = document.createElement('td');
+  const inpFrom = document.createElement('input');
+  inpFrom.type = 'text';
+  inpFrom.placeholder = 'From';
+  inpFrom.value = data?.from || '';
+  td5.appendChild(inpFrom);
+  tr.appendChild(td5);
+
+  // Cell 6: Delete button
+  const td6 = document.createElement('td');
+  const btnDel = document.createElement('button');
+  btnDel.onclick = function() { this.closest('tr').remove(); };
+  btnDel.style.cssText = 'background:none;border:none;color:#f44336;font-size:1.2rem;cursor:pointer;';
+  btnDel.textContent = '×';
+  td6.appendChild(btnDel);
+  tr.appendChild(td6);
+
   tbody.appendChild(tr);
 }
 
@@ -895,8 +968,15 @@ function renderPhotos() {
     const div = document.createElement('div');
     div.style.cssText = 'position:relative;display:inline-block;';
     const previewUrl = photoThumbUrls[i] || url;
-    div.innerHTML = `<img src="${previewUrl}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1.5px solid #ddd;">
-      <button onclick="removePhoto(${i})" style="position:absolute;top:-6px;right:-6px;background:#f44336;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;line-height:22px;">×</button>`;
+    const img = document.createElement('img');
+    img.src = previewUrl;
+    img.style.cssText = 'width:80px;height:80px;object-fit:cover;border-radius:6px;border:1.5px solid #ddd;';
+    div.appendChild(img);
+    const btn = document.createElement('button');
+    btn.style.cssText = 'position:absolute;top:-6px;right:-6px;background:#f44336;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;line-height:22px;';
+    btn.textContent = '×';
+    btn.addEventListener('click', () => removePhoto(i));
+    div.appendChild(btn);
     area.insertBefore(div, addBtn);
   });
 }
@@ -1500,20 +1580,44 @@ async function loadReportList() {
   if (reports.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
   reports.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  list.innerHTML = reports.map(r => `
-    <div class="list-item" onclick="openReport('${r.id}')">
-      <div>
-        <strong>${r.reportNo || '(Draft)'}</strong>
-        <div style="font-size:0.82rem;">${r.custName || 'No customer'} — ${r.machine || ''}</div>
-        <div class="meta">${r.svcDate || ''} • ${r.svcPersonnel || ''}</div>
-      </div>
-      <div style="text-align:right;">
-        <span class="status-dot ${r.status === 'completed' ? 'synced' : 'pending'}"></span>
-        <span style="font-size:0.7rem;color:#888;">${r.status}</span>
-        <button onclick="event.stopPropagation();deleteThis('${r.id}')" style="display:block;background:none;border:none;color:#f44336;font-size:0.7rem;cursor:pointer;margin-top:4px;">Delete</button>
-      </div>
-    </div>
-  `).join('');
+  list.textContent = '';
+  reports.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'list-item';
+    item.addEventListener('click', () => openReport(r.id));
+
+    const left = document.createElement('div');
+    const strong = document.createElement('strong');
+    strong.textContent = r.reportNo || '(Draft)';
+    left.appendChild(strong);
+    const nameLine = document.createElement('div');
+    nameLine.style.fontSize = '0.82rem';
+    nameLine.textContent = (r.custName || 'No customer') + ' — ' + (r.machine || '');
+    left.appendChild(nameLine);
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = (r.svcDate || '') + ' • ' + (r.svcPersonnel || '');
+    left.appendChild(meta);
+    item.appendChild(left);
+
+    const right = document.createElement('div');
+    right.style.textAlign = 'right';
+    const dot = document.createElement('span');
+    dot.className = 'status-dot ' + (r.status === 'completed' ? 'synced' : 'pending');
+    right.appendChild(dot);
+    const statusSpan = document.createElement('span');
+    statusSpan.style.cssText = 'font-size:0.7rem;color:#888;';
+    statusSpan.textContent = r.status;
+    right.appendChild(statusSpan);
+    const delBtn = document.createElement('button');
+    delBtn.style.cssText = 'display:block;background:none;border:none;color:#f44336;font-size:0.7rem;cursor:pointer;margin-top:4px;';
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteThis(r.id); });
+    right.appendChild(delBtn);
+    item.appendChild(right);
+
+    list.appendChild(item);
+  });
 }
 
 async function openReport(id) {
