@@ -1098,12 +1098,22 @@ async function submitReport() {
     const doc = await generatePDF(data);
     lastGeneratedDoc = doc;
     lastReportNo = data.reportNo;
-    doc.save(`${data.reportNo}.pdf`);
-    
+
+    // Use blob + manual download link to avoid navigating away (PWA/mobile)
+    const blob = doc.output('blob');
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `${data.reportNo}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+
     // Show post-submit card
     document.getElementById('postSubmitMsg').textContent = `Report ${data.reportNo} was generated and downloaded.`;
     document.getElementById('postSubmitCard').style.display = 'block';
-    
+
     toast(`✅ ${data.reportNo} saved!`);
   } catch(e) {
     toast('❌ PDF error: ' + e.message);
