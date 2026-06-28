@@ -888,19 +888,12 @@ async function generatePDF(data) {
   doc.line(rightX, y, rightX, y + topH);
   for (let i = 1; i < 6; i++) doc.line(L, y + row * i, rightX, y + row * i);
 
-  // Left information grid: explicit label/value boxes so centered labels don't float.
-  const fullLabelX = L + 70;
+  // Left information grid: keep only the original row/column structure; values sit close to labels.
+  const fullValueX = L + 58;
   const shortLabelX = L + 28;
   const rightLabelX = L + 112;
-  doc.line(fullLabelX, y, fullLabelX, y + row * 2);
-  doc.line(shortLabelX, y + row * 2, shortLabelX, y + row * 3);
   doc.line(L + 72, y + row * 2, L + 72, y + row * 3);
-  doc.line(rightLabelX, y + row * 2, rightLabelX, y + row * 3);
-  doc.line(fullLabelX, y + row * 3, fullLabelX, y + row * 4);
-  doc.line(shortLabelX, y + row * 4, shortLabelX, y + row * 5);
   doc.line(L + 72, y + row * 4, L + 72, y + row * 5);
-  doc.line(L + 98, y + row * 4, L + 98, y + row * 5);
-  doc.line(fullLabelX, y + row * 5, fullLabelX, y + topH);
 
   // Right company and warranty blocks
   doc.line(rightX, y + row * 4, R, y + row * 4);
@@ -914,14 +907,14 @@ async function generatePDF(data) {
   const b5 = y + row * 4 + 4.1;
   const b6 = y + row * 5 + 4.1;
 
-  centeredLabel('CUSTOMER NAME :', L, fullLabelX, b1); value(data.custName, fullLabelX + 2, b1, 45);
-  centeredLabel('CONTACT PERSON :', L, fullLabelX, b2); value(data.contactPerson, fullLabelX + 2, b2, 45);
-  centeredLabel('DATE :', L, shortLabelX, b3); value(data.svcDate, shortLabelX + 2, b3, 18);
-  centeredLabel('WORKING HOURS :', L + 72, rightLabelX, b3); value(data.workingHours, rightLabelX + 2, b3, 16);
-  centeredLabel('SERVICE PERSONNEL :', L, fullLabelX, b4); value(data.svcPersonnel, fullLabelX + 2, b4, 45);
-  centeredLabel('MACHINE :', L, shortLabelX, b5); value(data.machine, shortLabelX + 2, b5, 22);
-  centeredLabel('SERIAL NO :', L + 72, L + 98, b5); value(data.serialNo, L + 100, b5, 18);
-  centeredLabel('SOFTWARE VERSION :', L, fullLabelX, b6); value(data.swVersion, fullLabelX + 2, b6, 45);
+  centeredLabel('CUSTOMER NAME :', L + 1, L + 50, b1); value(data.custName, fullValueX, b1, 45);
+  centeredLabel('CONTACT PERSON :', L + 1, L + 50, b2); value(data.contactPerson, fullValueX, b2, 45);
+  centeredLabel('DATE :', L + 1, L + 23, b3); value(data.svcDate, L + 31, b3, 18);
+  centeredLabel('WORKING HOURS :', L + 73, L + 110, b3); value(data.workingHours, rightLabelX + 2, b3, 16);
+  centeredLabel('SERVICE PERSONNEL :', L + 1, L + 55, b4); value(data.svcPersonnel, fullValueX + 6, b4, 40);
+  centeredLabel('MACHINE :', L + 1, L + 23, b5); value(data.machine, L + 31, b5, 22);
+  centeredLabel('SERIAL NO :', L + 73, L + 98, b5); value(data.serialNo, L + 104, b5, 18);
+  centeredLabel('SOFTWARE VERSION :', L + 1, L + 55, b6); value(data.swVersion, fullValueX + 6, b6, 40);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.4);
