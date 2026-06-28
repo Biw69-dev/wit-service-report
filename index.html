@@ -66,16 +66,51 @@ table.parts input:focus { border-color: #00897B; outline: none; }
 </head>
 <body>
 
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" style="display:flex; position:fixed; inset:0; background:linear-gradient(135deg,#00695C,#00897B); z-index:999; justify-content:center; align-items:center; padding:20px;">
+  <div style="background:#fff; border-radius:16px; padding:32px 24px; max-width:360px; width:100%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <div style="text-align:center; margin-bottom:24px;">
+      <img src="new-logo-wit.png" alt="WIT" style="width:120px; margin-bottom:12px;" onerror="this.style.display='none'">
+      <h2 style="color:#00695C; font-size:1.3rem;">WIT Service Report</h2>
+      <p style="color:#888; font-size:0.85rem; margin-top:4px;">Sign in to continue</p>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:4px;">EMAIL</label>
+      <input type="email" id="loginEmail" placeholder="you@wit.co.th" autocomplete="username"
+        style="width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:0.95rem;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:4px;">PASSWORD</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"
+        style="width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:0.95rem;">
+    </div>
+    <button onclick="handleLogin()" style="width:100%; padding:14px; background:linear-gradient(135deg,#00695C,#00897B); color:#fff; border:none; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer;">
+      Sign In
+    </button>
+    <p id="loginError" style="display:none; color:#f44336; font-size:0.8rem; text-align:center; margin-top:12px;"></p>
+  </div>
+</div>
+
+<script>
+  // Enter key on password field triggers login
+  document.addEventListener('DOMContentLoaded', () => {
+    const pw = document.getElementById('loginPassword');
+    if (pw) pw.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+  });
+</script>
+
 <div class="app-header">
   <span id="headerTitle">WIT Service Report</span>
   <div style="display:flex; align-items:center; gap:8px;">
-    <span class="badge" id="pendingBadge">0 pending</span>
+    <span id="pendingBadge" class="badge">0 pending</span>
+    <span id="userBadge" style="font-size:0.72rem; background:rgba(255,255,255,0.2); padding:3px 8px; border-radius:12px; display:none;"></span>
+    <button onclick="handleLogout()" title="Logout" style="background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;padding:2px 6px;">⏻</button>
     <button onclick="showSettings()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:2px 6px;">⚙️</button>
   </div>
 </div>
 
 <!-- HOME -->
-<div class="container home-screen screen-active" id="homeScreen">
+<div class="container home-screen" id="homeScreen">
   <button class="btn-primary" onclick="showForm()">＋ New Service Report</button>
   <div id="reportList" style="margin-top:12px;"></div>
   <div class="empty-state" id="emptyState">No reports yet.<br>Tap "+ New Service Report" to start.</div>
@@ -222,6 +257,7 @@ table.parts input:focus { border-color: #00897B; outline: none; }
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <script>
 // Suppress silent errors from CDN/cross-origin scripts
@@ -234,7 +270,13 @@ window.addEventListener('unhandledrejection', function(e) {
   e.preventDefault();
 });
 
-// ==================== DATABASE ====================
+// ==================== SUPABASE CONFIG ====================
+const SUPABASE_URL = 'https://hjenntusksiuyhrafdhj.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_1b8JheFgqD7AbK0ZyCb9sQ_SppI83MC';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let currentUser = null;
+
+// ==================== DATABASE (IndexedDB for offline/draft cache) ====================
 const DB_NAME = 'wit_sr_db';
 const DB_VER = 1;
 let db;
@@ -305,6 +347,55 @@ async function getNextCounter(dateStr) {
       resolve(val);
     };
   });
+}
+
+// ==================== SUPABASE SYNC ====================
+async function sbSaveReport(data) {
+  const row = {
+    id: data.id,
+    report_no: data.reportNo || null,
+    status: data.status || 'draft',
+    data: data,
+    created_by: currentUser?.email || null,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await sb.from('reports').upsert(row);
+  if (error) console.error('Supabase save error:', error.message);
+}
+
+async function sbGetAllReports() {
+  const { data, error } = await sb.from('reports')
+    .select('id, report_no, status, data, created_by, updated_at')
+    .order('updated_at', { ascending: false });
+  if (error) { console.error('Supabase load error:', error.message); return []; }
+  return (data || []).map(r => ({
+    id: r.id,
+    ...r.data,
+    reportNo: r.report_no || r.data?.reportNo || '',
+    status: r.status,
+    updatedAt: r.updated_at,
+    createdBy: r.created_by
+  }));
+}
+
+async function sbGetReport(id) {
+  const { data, error } = await sb.from('reports').select('data').eq('id', id).single();
+  if (error) { console.error('Supabase get error:', error.message); return null; }
+  return data?.data || null;
+}
+
+async function sbDeleteReport(id) {
+  const { error } = await sb.from('reports').delete().eq('id', id);
+  if (error) console.error('Supabase delete error:', error.message);
+}
+
+async function sbGetNextCounter(dateStr) {
+  // Get current count for this date atomically via RPC or client-side
+  const key = 'counter_' + dateStr.replace(/-/g, '');
+  const { data } = await sb.from('settings').select('value').eq('key', key).single();
+  const next = (data?.value || 0) + 1;
+  await sb.from('settings').upsert({ key, value: next });
+  return next;
 }
 
 // ==================== NAVIGATION ====================
@@ -529,13 +620,15 @@ async function saveDraft() {
   data.status = 'draft';
   data.updatedAt = new Date().toISOString();
   data.photos = photoDataUrls.slice();
-  await saveReport(data);
+  await saveReport(data);          // local cache
+  await sbSaveReport(data);        // cloud sync
   editingDraftId = id;
   toast('Draft saved 💾');
 }
 
 async function loadDraft(id) {
-  const data = await getReport(id);
+  let data = await sbGetReport(id);
+  if (!data) data = await getReport(id); // fallback to local
   if (!data) return;
   editingDraftId = id;
   document.getElementById('homeScreen').classList.remove('screen-active');
@@ -556,8 +649,8 @@ async function loadDraft(id) {
 // ==================== PDF GENERATION ====================
 const PDF_FONT_FAMILY = 'NotoSansThai';
 const PDF_FONT_URLS = {
-  normal: 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansThai/NotoSansThai-Regular.ttf',
-  bold: 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansThai/NotoSansThai-Bold.ttf'
+  normal: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/hinted/ttf/NotoSansThai/NotoSansThai-Regular.ttf',
+  bold: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/hinted/ttf/NotoSansThai/NotoSansThai-Bold.ttf'
 };
 let pdfFontPromise = null;
 let pdfFontData = null;
@@ -715,7 +808,7 @@ async function generatePDF(data) {
   if (companyLogo) {
     try {
       // Real company logo supplied by user. Preserve aspect ratio; crop-like white margins are already in source.
-      doc.addImage(companyLogo, 'JPEG', 6, 5, 35, 15);
+      doc.addImage(companyLogo, 'JPEG', 6, 2, 35, 15);
     } catch (e) {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor('#00A887');
@@ -937,7 +1030,7 @@ async function submitReport() {
   if (!sigPads['sigApprove'] || sigPads['sigApprove'].isEmpty()) return toast('⚠️ Approve signature required');
 
   const dateStr = data.svcDate || new Date().toISOString().split('T')[0];
-  const counter = await getNextCounter(dateStr);
+  const counter = await sbGetNextCounter(dateStr);
   data.reportNo = `WIT-SR-${dateStr.replace(/-/g, '')}-${String(counter).padStart(3, '0')}`;
   document.getElementById('reportNo').value = data.reportNo;
 
@@ -946,7 +1039,8 @@ async function submitReport() {
   data.status = 'completed';
   data.updatedAt = new Date().toISOString();
   data.photos = photoDataUrls.slice();
-  await saveReport(data);
+  await saveReport(data);          // local cache
+  await sbSaveReport(data);        // cloud sync
   if (data.svcPersonnel) localStorage.setItem('wit_default_personnel', data.svcPersonnel);
 
   toast('Generating PDF...');
@@ -1016,7 +1110,7 @@ function saveSettings() {
 
 // ==================== REPORT LIST ====================
 async function loadReportList() {
-  const reports = await getAllReports();
+  const reports = await sbGetAllReports();
   const list = document.getElementById('reportList');
   const empty = document.getElementById('emptyState');
   const badge = document.getElementById('pendingBadge');
@@ -1048,7 +1142,8 @@ async function openReport(id) {
 
 async function deleteThis(id) {
   if (!confirm('Delete this report?')) return;
-  await deleteReport(id);
+  await deleteReport(id);    // local cache
+  await sbDeleteReport(id);  // cloud
   loadReportList();
   toast('Report deleted');
 }
@@ -1064,14 +1159,65 @@ document.getElementById('svcTypeGroup').addEventListener('change', (e) => {
   if (e.target.type === 'checkbox') e.target.parentElement.classList.toggle('checked', e.target.checked);
 });
 
+// ==================== AUTH ====================
+async function checkAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    showApp();
+  } else {
+    showLogin();
+  }
+}
+
+function showLogin() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('homeScreen').classList.remove('screen-active');
+  document.getElementById('formScreen').classList.remove('screen-active');
+  document.getElementById('settingsScreen').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  const badge = document.getElementById('userBadge');
+  badge.textContent = currentUser.email.split('@')[0];
+  badge.style.display = 'inline-block';
+  showHome();
+}
+
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  if (!email || !password) { errEl.textContent = 'Please enter email and password'; errEl.style.display = 'block'; return; }
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.style.display = 'block';
+    return;
+  }
+  currentUser = data.user;
+  showApp();
+}
+
+async function handleLogout() {
+  await sb.auth.signOut();
+  currentUser = null;
+  showLogin();
+  toast('Logged out');
+}
+
+// ==================== INIT ====================
 async function init() {
   await openDB();
-  loadReportList();
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('svcDate').value = today;
   document.getElementById('sigCustDate').value = today;
   document.getElementById('sigSvcDate').value = today;
   document.getElementById('sigApproveDate').value = today;
+  // Check auth, if logged in → load reports
+  await checkAuth();
 }
 
 window.addEventListener('load', init);
