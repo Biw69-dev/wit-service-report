@@ -222,7 +222,7 @@ table.parts input:focus { border-color: #00897B; outline: none; }
   </div>
 
   <button class="btn-primary" onclick="submitReport()">📄 Generate &amp; Download PDF</button>
-  <button class="btn-secondary" onclick="saveDraft()">💾 Save Draft</button>
+  <button class="btn-secondary" id="saveDraftBtn" onclick="saveDraft(true)">💾 Save Draft</button>
   <button class="btn-secondary" onclick="showHome()" style="color:#999; border-color:#ccc;">← Back to Reports</button>
 
   <!-- Post-submit result -->
@@ -410,12 +410,13 @@ async function sbGetNextCounter(dateStr) {
 }
 
 // ==================== NAVIGATION ====================
-function showHome() {
+async function showHome() {
   document.getElementById('homeScreen').classList.add('screen-active');
   document.getElementById('formScreen').classList.remove('screen-active');
+  document.getElementById('settingsScreen').style.display = 'none';
   document.getElementById('headerTitle').textContent = 'WIT Service Report';
   editingDraftId = null;
-  loadReportList();
+  await loadReportList();
 }
 
 function showForm(draftId) {
@@ -624,17 +625,33 @@ function removePhoto(i) {
 }
 
 // ==================== SAVE / LOAD DRAFT ====================
-async function saveDraft() {
-  const data = getFormData();
-  const id = editingDraftId || 'draft_' + Date.now();
-  data.id = id;
-  data.status = 'draft';
-  data.updatedAt = new Date().toISOString();
-  data.photos = photoDataUrls.slice();
-  await saveReport(data);          // local cache
-  const cloudSaved = await sbSaveReport(data);        // cloud sync
-  editingDraftId = id;
-  toast(cloudSaved ? 'Draft saved 💾' : 'Draft saved locally ⚠️ Cloud sync failed');
+async function saveDraft(returnHome = false) {
+  const btn = document.getElementById('saveDraftBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+  }
+  try {
+    const data = getFormData();
+    const id = editingDraftId || 'draft_' + Date.now();
+    data.id = id;
+    data.status = 'draft';
+    data.updatedAt = new Date().toISOString();
+    data.photos = photoDataUrls.slice();
+    await saveReport(data);          // local cache
+    const cloudSaved = await sbSaveReport(data);        // cloud sync
+    editingDraftId = id;
+    toast(cloudSaved ? 'Draft saved 💾' : 'Draft saved locally ⚠️ Cloud sync failed');
+    if (returnHome) await showHome();
+  } catch (err) {
+    console.error('Save draft error:', err);
+    toast('Save draft failed ❌');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '💾 Save Draft';
+    }
+  }
 }
 
 async function loadDraft(id) {
