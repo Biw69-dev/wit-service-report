@@ -1206,9 +1206,13 @@ async function openReport(id) {
 
 async function deleteThis(id) {
   if (!confirm('Delete this report?')) return;
-  await deleteReport(id);    // local cache
-  await sbDeleteReport(id);  // cloud
-  loadReportList();
+  try {
+    await deleteReport(id);    // local cache
+  } catch(e) { console.error('Local delete failed:', e); }
+  try {
+    await sbDeleteReport(id);  // cloud
+  } catch(e) { console.error('Cloud delete failed:', e); }
+  await loadReportList();
   toast('Report deleted');
 }
 
