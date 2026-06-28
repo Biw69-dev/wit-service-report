@@ -26,17 +26,29 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 }
 .field input:focus, .field textarea:focus { border-color: #00897B; outline: none; }
 .field textarea { resize: vertical; min-height: 60px; }
+#countermeasure { min-height: 150px; }
 .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
 .checkbox-group label { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; font-weight: 400; text-transform: none; cursor: pointer; padding: 6px 10px; border: 1.5px solid #e0e0e0; border-radius: 20px; user-select: none; }
 .checkbox-group label.checked { background: #e0f2f1; border-color: #00897B; color: #00695C; }
 .checkbox-group input[type=checkbox] { display: none; }
 .radio-group { display: flex; gap: 16px; }
 .radio-group label { display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer; }
-table.parts { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-table.parts th { background: #e0f2f1; padding: 6px; text-align: left; font-size: 0.68rem; color: #00695C; }
-table.parts td { padding: 4px; border-bottom: 1px solid #eee; }
+table.parts-wrap { width: 100%; }
+.parts-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.parts { width: 100%; min-width: 620px; border-collapse: collapse; table-layout: fixed; font-size: 0.8rem; }
+table.parts th { background: #e0f2f1; padding: 6px; text-align: center; font-size: 0.68rem; color: #00695C; white-space: nowrap; }
+table.parts td { padding: 4px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.parts th:nth-child(1) { width: 30%; }
+table.parts th:nth-child(2) { width: 18%; }
+table.parts th:nth-child(3) { width: 52px; }
+table.parts th:nth-child(4) { width: 84px; }
+table.parts th:nth-child(5) { width: 18%; }
+table.parts th:nth-child(6) { width: 32px; }
 table.parts input { width: 100%; padding: 5px; border: 1.5px solid #e0e0e0; border-radius: 4px; font-size: 0.8rem; }
 table.parts input:focus { border-color: #00897B; outline: none; }
+.parts-charge-cell { white-space: normal; font-size: 0.72rem; }
+.parts-charge-cell label { display: flex; align-items: center; gap: 3px; line-height: 1.15; margin: 1px 0; }
+table.parts .parts-charge-cell input[type=radio] { width: auto; padding: 0; margin: 0; }
 .sig-section { display: flex; gap: 12px; flex-wrap: wrap; }
 .sig-box { flex: 1; min-width: 180px; }
 .sig-box h4 { font-size: 0.72rem; color: #555; margin-bottom: 6px; text-transform: uppercase; }
@@ -169,10 +181,12 @@ table.parts input:focus { border-color: #00897B; outline: none; }
 
   <div class="card">
     <h3>Parts</h3>
-    <table class="parts" id="partsTable">
-      <thead><tr><th>Description</th><th>Part No.</th><th>Qty</th><th>Free/Chrg</th><th>From</th><th></th></tr></thead>
-      <tbody id="partsTbody"></tbody>
-    </table>
+    <div class="parts-wrap">
+      <table class="parts" id="partsTable">
+        <thead><tr><th>Description</th><th>Part No.</th><th>Qty</th><th>Free/Chrg</th><th>From</th><th></th></tr></thead>
+        <tbody id="partsTbody"></tbody>
+      </table>
+    </div>
     <button class="btn-secondary" onclick="addPartRow()" style="font-size:0.8rem; padding:6px;">+ Add Part</button>
   </div>
 
@@ -470,7 +484,7 @@ function getFormData() {
         qty: inputs[2]?.value || '',
         charge: row.querySelector('input[value=CHARGE]:checked') ? 'CHARGE' :
                 row.querySelector('input[value=FREE]:checked') ? 'FREE' : '',
-        from: inputs[4]?.value || ''
+        from: inputs[3]?.value || ''
       });
     }
   });
@@ -582,9 +596,9 @@ function addPartRow(data) {
     <td><input type="text" placeholder="Description" value="${data?.desc || ''}"></td>
     <td><input type="text" placeholder="Part No." value="${data?.partNo || ''}"></td>
     <td><input type="number" placeholder="Qty" value="${data?.qty || ''}" style="width:50px;"></td>
-    <td style="white-space:nowrap;font-size:0.68rem;">
-      <label><input type="radio" name="part${rowIdx}_chg" value="FREE" ${data?.charge==='FREE'?'checked':''}> F</label>
-      <label><input type="radio" name="part${rowIdx}_chg" value="CHARGE" ${data?.charge==='CHARGE'?'checked':''}> C</label>
+    <td class="parts-charge-cell">
+      <label><input type="radio" name="part${rowIdx}_chg" value="FREE" ${data?.charge==='FREE'?'checked':''}> Free</label>
+      <label><input type="radio" name="part${rowIdx}_chg" value="CHARGE" ${data?.charge==='CHARGE'?'checked':''}> Chrg</label>
     </td>
     <td><input type="text" placeholder="From" value="${data?.from || ''}"></td>
     <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;color:#f44336;font-size:1.2rem;cursor:pointer;">×</button></td>
@@ -806,6 +820,12 @@ async function generatePDF(data) {
     doc.text(text, x, y);
   }
 
+  function centeredLabel(text, x1, x2, y, size = 7.2) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(size);
+    doc.text(text, (x1 + x2) / 2, y, { align: 'center' });
+  }
+
   function value(text, x, y, max = 45, size = 6.4) {
     if (!text) return;
     doc.setFontSize(size);
@@ -882,14 +902,14 @@ async function generatePDF(data) {
   const b5 = y + row * 4 + 4.1;
   const b6 = y + row * 5 + 4.1;
 
-  label('CUSTOMER NAME :', L + 1, b1); value(data.custName, L + 43, b1, 40);
-  label('CONTACT PERSON :', L + 1, b2); value(data.contactPerson, L + 43, b2, 40);
-  label('DATE :', L + 1, b3); value(data.svcDate, L + 25, b3, 18);
-  label('WORKING HOURS :', L + 73, b3); value(data.workingHours, L + 112, b3, 16);
-  label('SERVICE PERSONNEL :', L + 1, b4); value(data.svcPersonnel, L + 48, b4, 35);
-  label('MACHINE :', L + 1, b5); value(data.machine, L + 25, b5, 22);
-  label('SERIAL NO :', L + 73, b5); value(data.serialNo, L + 100, b5, 18);
-  label('SOFTWARE VERSION :', L + 1, b6); value(data.swVersion, L + 48, b6, 35);
+  centeredLabel('CUSTOMER NAME :', L + 1, L + 41, b1); value(data.custName, L + 43, b1, 40);
+  centeredLabel('CONTACT PERSON :', L + 1, L + 41, b2); value(data.contactPerson, L + 43, b2, 40);
+  centeredLabel('DATE :', L + 1, L + 23, b3); value(data.svcDate, L + 25, b3, 18);
+  centeredLabel('WORKING HOURS :', L + 73, L + 110, b3); value(data.workingHours, L + 112, b3, 16);
+  centeredLabel('SERVICE PERSONNEL :', L + 1, L + 46, b4); value(data.svcPersonnel, L + 48, b4, 35);
+  centeredLabel('MACHINE :', L + 1, L + 23, b5); value(data.machine, L + 25, b5, 22);
+  centeredLabel('SERIAL NO :', L + 73, L + 98, b5); value(data.serialNo, L + 100, b5, 18);
+  centeredLabel('SOFTWARE VERSION :', L + 1, L + 46, b6); value(data.swVersion, L + 48, b6, 35);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.4);
