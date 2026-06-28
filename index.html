@@ -887,8 +887,20 @@ async function generatePDF(data) {
   doc.rect(L, y, TW, topH);
   doc.line(rightX, y, rightX, y + topH);
   for (let i = 1; i < 6; i++) doc.line(L, y + row * i, rightX, y + row * i);
+
+  // Left information grid: explicit label/value boxes so centered labels don't float.
+  const fullLabelX = L + 70;
+  const shortLabelX = L + 28;
+  const rightLabelX = L + 112;
+  doc.line(fullLabelX, y, fullLabelX, y + row * 2);
+  doc.line(shortLabelX, y + row * 2, shortLabelX, y + row * 3);
   doc.line(L + 72, y + row * 2, L + 72, y + row * 3);
+  doc.line(rightLabelX, y + row * 2, rightLabelX, y + row * 3);
+  doc.line(fullLabelX, y + row * 3, fullLabelX, y + row * 4);
+  doc.line(shortLabelX, y + row * 4, shortLabelX, y + row * 5);
   doc.line(L + 72, y + row * 4, L + 72, y + row * 5);
+  doc.line(L + 98, y + row * 4, L + 98, y + row * 5);
+  doc.line(fullLabelX, y + row * 5, fullLabelX, y + topH);
 
   // Right company and warranty blocks
   doc.line(rightX, y + row * 4, R, y + row * 4);
@@ -902,14 +914,14 @@ async function generatePDF(data) {
   const b5 = y + row * 4 + 4.1;
   const b6 = y + row * 5 + 4.1;
 
-  centeredLabel('CUSTOMER NAME :', L + 1, L + 41, b1); value(data.custName, L + 43, b1, 40);
-  centeredLabel('CONTACT PERSON :', L + 1, L + 41, b2); value(data.contactPerson, L + 43, b2, 40);
-  centeredLabel('DATE :', L + 1, L + 23, b3); value(data.svcDate, L + 25, b3, 18);
-  centeredLabel('WORKING HOURS :', L + 73, L + 110, b3); value(data.workingHours, L + 112, b3, 16);
-  centeredLabel('SERVICE PERSONNEL :', L + 1, L + 46, b4); value(data.svcPersonnel, L + 48, b4, 35);
-  centeredLabel('MACHINE :', L + 1, L + 23, b5); value(data.machine, L + 25, b5, 22);
-  centeredLabel('SERIAL NO :', L + 73, L + 98, b5); value(data.serialNo, L + 100, b5, 18);
-  centeredLabel('SOFTWARE VERSION :', L + 1, L + 46, b6); value(data.swVersion, L + 48, b6, 35);
+  centeredLabel('CUSTOMER NAME :', L, fullLabelX, b1); value(data.custName, fullLabelX + 2, b1, 45);
+  centeredLabel('CONTACT PERSON :', L, fullLabelX, b2); value(data.contactPerson, fullLabelX + 2, b2, 45);
+  centeredLabel('DATE :', L, shortLabelX, b3); value(data.svcDate, shortLabelX + 2, b3, 18);
+  centeredLabel('WORKING HOURS :', L + 72, rightLabelX, b3); value(data.workingHours, rightLabelX + 2, b3, 16);
+  centeredLabel('SERVICE PERSONNEL :', L, fullLabelX, b4); value(data.svcPersonnel, fullLabelX + 2, b4, 45);
+  centeredLabel('MACHINE :', L, shortLabelX, b5); value(data.machine, shortLabelX + 2, b5, 22);
+  centeredLabel('SERIAL NO :', L + 72, L + 98, b5); value(data.serialNo, L + 100, b5, 18);
+  centeredLabel('SOFTWARE VERSION :', L, fullLabelX, b6); value(data.swVersion, fullLabelX + 2, b6, 45);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.4);
@@ -930,14 +942,14 @@ async function generatePDF(data) {
   y += topH;
   const typeH = 9;
   doc.rect(L, y, TW, typeH);
-  label('TYPE OF SERVICE :', L + 1, y + 6.0, 7.2);
+  label('TYPE OF SERVICE :', L + 1, y + 6.0, 6.7);
   const svcLabels = ['INSTALLATION', 'MAINTENANCE', 'INSPECTION', 'TROUBLESHOOT', 'OTHERS'];
-  const svcXs = [29, 58, 87, 115, 151];
+  const svcXs = [34, 68, 101, 137, 178];
   svcLabels.forEach((name, i) => {
     const checked = (data.svcTypes || []).includes(name);
     checkBox(svcXs[i], y + 5.9, checked);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
+    doc.setFontSize(5.9);
     doc.text(name, svcXs[i] + 4, y + 6.2);
   });
 
