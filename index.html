@@ -299,6 +299,8 @@ let editingDraftId = null;
 let photoDataUrls = [];
 let lastGeneratedDoc = null;
 let lastReportNo = '';
+const PHOTO_MAX_DIMENSION = 1280;
+const PHOTO_JPEG_QUALITY = 0.72;
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -634,16 +636,114 @@ function addPartRow(data) {
 }
 
 // ==================== PHOTOS ====================
-function addPhotos(input) {
-  Array.from(input.files).forEach(file => {
+function blobToDataUrl(blob, errorMessage = 'File read failed') {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      photoDataUrls.push(e.target.result);
-      renderPhotos();
-    };
-    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error(errorMessage));
+    reader.readAsDataURL(blob);
   });
+}
+
+function loadImage(src, errorMessage = 'Photo decode failed') {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(errorMessage));
+    img.src = src;
+  });
+}
+
+function estimateDataUrlLength(file) {
+  const mime = file.type || 'image/jpeg';
+  return `data:${mime};base64,`.length + Math.ceil(file.size / 3) * 4;
+}
+
+function shouldCompressPhoto(dataUrl, img) {
+  const isJpeg = dataUrl.startsWith('data:image/jpeg') || dataUrl.startsWith('data:image/jpg');
+  const oversized = Math.max(img.naturalWidth, img.naturalHeight) > PHOTO_MAX_DIMENSION;
+  return !isJpeg || oversized;
+}
+
+function shouldCompressFile(file, img) {
+  const isJpeg = file.type === 'image/jpeg' || file.type === 'image/jpg';
+  const oversized = Math.max(img.naturalWidth, img.naturalHeight) > PHOTO_MAX_DIMENSION;
+  return !isJpeg || oversized;
+}
+
+function resizePhotoToJpeg(img) {
+  const scale = Math.min(1, PHOTO_MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
+  const width = Math.max(1, Math.round(img.naturalWidth * scale));
+  const height = Math.max(1, Math.round(img.naturalHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(img, 0, 0, width, height);
+  return canvas.toDataURL('image/jpeg', PHOTO_JPEG_QUALITY);
+}
+
+async function compressPhotoDataUrl(dataUrl) {
+  const img = await loadImage(dataUrl);
+  if (!shouldCompressPhoto(dataUrl, img)) return dataUrl;
+
+  const compressedDataUrl = resizePhotoToJpeg(img);
+  return compressedDataUrl.length < dataUrl.length ? compressedDataUrl : dataUrl;
+}
+
+async function compressPhoto(file) {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await loadImage(objectUrl);
+    if (!shouldCompressFile(file, img)) return blobToDataUrl(file, 'Photo read failed');
+
+    const compressedDataUrl = resizePhotoToJpeg(img);
+    if (compressedDataUrl.length < estimateDataUrlLength(file)) return compressedDataUrl;
+    return blobToDataUrl(file, 'Photo read failed');
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function compressCurrentPhotos() {
+  let changed = false;
+  for (let i = 0; i < photoDataUrls.length; i++) {
+    try {
+      const compressed = await compressPhotoDataUrl(photoDataUrls[i]);
+      if (compressed !== photoDataUrls[i]) {
+        photoDataUrls[i] = compressed;
+        changed = true;
+      }
+    } catch (e) {
+      console.error('Existing photo compress failed:', e);
+    }
+  }
+  if (changed) renderPhotos();
+}
+
+async function addPhotos(input) {
+  const files = Array.from(input.files || []);
+  if (files.length === 0) { input.value = ''; return; }
+
+  let added = 0;
+  let failed = 0;
+  toast('Compressing photo' + (files.length > 1 ? 's' : '') + '...');
+  for (const file of files) {
+    try {
+      photoDataUrls.push(await compressPhoto(file));
+      added += 1;
+      renderPhotos();
+    } catch (e) {
+      failed += 1;
+      console.error('Photo compress failed:', e);
+    }
+  }
   input.value = '';
+  if (added > 0 && failed > 0) toast(`${added} photo${added > 1 ? 's' : ''} added, ${failed} failed ⚠️`);
+  else if (added > 0) toast('Photo' + (added > 1 ? 's' : '') + ' added ✅');
+  else toast('No photos added ⚠️');
 }
 
 function renderPhotos() {
@@ -673,6 +773,7 @@ async function saveDraft(returnHome = false) {
     btn.textContent = 'Saving...';
   }
   try {
+    await compressCurrentPhotos();
     const data = getFormData();
     const id = editingDraftId || 'draft_' + Date.now();
     data.id = id;
@@ -762,12 +863,7 @@ async function imageToDataUrl(src) {
   const response = await fetch(`${src}?v=logo12`, { cache: 'reload' });
   if (!response.ok) throw new Error(`Image load failed: ${src}`);
   const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  return blobToDataUrl(blob, `Image read failed: ${src}`);
 }
 
 async function generatePDF(data) {
@@ -1105,6 +1201,8 @@ async function submitReport() {
   if (!sigPads['sigCustomer'] || sigPads['sigCustomer'].isEmpty()) return toast('⚠️ Customer signature required');
   if (!sigPads['sigService'] || sigPads['sigService'].isEmpty()) return toast('⚠️ Service signature required');
   if (!sigPads['sigApprove'] || sigPads['sigApprove'].isEmpty()) return toast('⚠️ Approve signature required');
+
+  await compressCurrentPhotos();
 
   const dateStr = data.svcDate || new Date().toISOString().split('T')[0];
   const counter = await sbGetNextCounter(dateStr);
