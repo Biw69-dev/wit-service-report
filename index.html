@@ -904,14 +904,14 @@ async function generatePDF(data) {
   const b5 = y + row * 4 + 4.1;
   const b6 = y + row * 5 + 4.1;
 
-  label('CUSTOMER NAME :', L + 1, b1, 6.8); value(data.custName, L + 42, b1, 42, 5.9);
-  label('CONTACT PERSON :', L + 1, b2, 6.8); value(data.contactPerson, L + 42, b2, 42, 5.9);
-  label('DATE :', L + 1, b3, 6.8); value(data.svcDate, L + 24, b3, 18, 5.9);
-  label('WORKING HOURS :', L + 73, b3, 6.8); value(data.workingHours, L + 109, b3, 16, 5.9);
-  label('SERVICE PERSONNEL :', L + 1, b4, 6.8); value(data.svcPersonnel, L + 48, b4, 36, 5.9);
-  label('MACHINE :', L + 1, b5, 6.8); value(data.machine, L + 27, b5, 22, 5.9);
-  label('SERIAL NO :', L + 73, b5, 6.8); value(data.serialNo, L + 99, b5, 18, 5.9);
-  label('SOFTWARE VERSION :', L + 1, b6, 6.8); value(data.swVersion, L + 49, b6, 36, 5.9);
+  label('CUSTOMER NAME :', L + 1, b1, 6.8); value(data.custName, L + 31, b1, 54, 5.9);
+  label('CONTACT PERSON :', L + 1, b2, 6.8); value(data.contactPerson, L + 32, b2, 53, 5.9);
+  label('DATE :', L + 1, b3, 6.8); value(data.svcDate, L + 16, b3, 25, 5.9);
+  label('WORKING HOURS :', L + 73, b3, 6.8); value(data.workingHours, L + 103, b3, 22, 5.9);
+  label('SERVICE PERSONNEL :', L + 1, b4, 6.8); value(data.svcPersonnel, L + 40, b4, 44, 5.9);
+  label('MACHINE :', L + 1, b5, 6.8); value(data.machine, L + 22, b5, 27, 5.9);
+  label('SERIAL NO :', L + 73, b5, 6.8); value(data.serialNo, L + 94, b5, 23, 5.9);
+  label('SOFTWARE VERSION :', L + 1, b6, 6.8); value(data.swVersion, L + 41, b6, 43, 5.9);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.4);
