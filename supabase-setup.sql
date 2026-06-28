@@ -47,5 +47,31 @@ CREATE POLICY "settings_write" ON settings FOR INSERT TO authenticated WITH CHEC
 DROP POLICY IF EXISTS "settings_update" ON settings;
 CREATE POLICY "settings_update" ON settings FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
+-- 7. สร้าง Supabase Storage bucket สำหรับรูป full/thumbnail และ PDF ฉบับ final
+--    ถ้า bucket มีอยู่แล้ว คำสั่งนี้จะไม่สร้างซ้ำ
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'wit-service-files',
+  'wit-service-files',
+  false,
+  10485760,
+  ARRAY['image/jpeg', 'image/png', 'application/pdf']::text[]
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- 8. Storage policy: ผู้ใช้ที่ login แล้วอ่าน/เขียน/ลบไฟล์ report ได้ทั้งหมด
+--    โครงสร้างไฟล์: reports/{report_id}/photos/photo-01.jpg, photo-01-thumb.jpg, pdf/{report_no}.pdf
+DROP POLICY IF EXISTS "wit_files_read"   ON storage.objects;
+DROP POLICY IF EXISTS "wit_files_insert" ON storage.objects;
+DROP POLICY IF EXISTS "wit_files_update" ON storage.objects;
+DROP POLICY IF EXISTS "wit_files_delete" ON storage.objects;
+CREATE POLICY "wit_files_read"   ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'wit-service-files');
+CREATE POLICY "wit_files_insert" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'wit-service-files');
+CREATE POLICY "wit_files_update" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'wit-service-files') WITH CHECK (bucket_id = 'wit-service-files');
+CREATE POLICY "wit_files_delete" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'wit-service-files');
+
 -- ✅ เสร็จแล้ว! ไปสร้าง user ต่อ:
 --    Authentication → Users → Add user → ใส่ email + password → Create

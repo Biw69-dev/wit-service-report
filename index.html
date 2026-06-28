@@ -297,10 +297,15 @@ let db;
 let sigPads = {};
 let editingDraftId = null;
 let photoDataUrls = [];
+let photoThumbUrls = [];
 let lastGeneratedDoc = null;
+let lastGeneratedPdfBlob = null;
 let lastReportNo = '';
+const STORAGE_BUCKET = 'wit-service-files';
 const PHOTO_MAX_DIMENSION = 1280;
 const PHOTO_JPEG_QUALITY = 0.72;
+const PHOTO_THUMB_MAX_DIMENSION = 320;
+const PHOTO_THUMB_JPEG_QUALITY = 0.64;
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -367,11 +372,18 @@ async function getNextCounter(dateStr) {
 
 // ==================== SUPABASE SYNC ====================
 async function sbSaveReport(data) {
+  let cloudData;
+  try {
+    cloudData = await prepareReportForCloud(data);
+  } catch (e) {
+    console.error('Storage upload error:', e.message || e);
+    return false;
+  }
   const row = {
     id: data.id,
     report_no: data.reportNo || null,
     status: data.status || 'draft',
-    data: data,
+    data: cloudData,
     created_by: currentUser?.email || null,
     updated_at: new Date().toISOString()
   };
@@ -452,6 +464,106 @@ async function sbGetNextCounter(dateStr) {
   return next;
 }
 
+// ==================== SUPABASE STORAGE ====================
+function safeStorageName(value) {
+  return String(value || 'file').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'file';
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [header, base64] = dataUrl.split(',');
+  const mime = (header.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
+  const binary = atob(base64 || '');
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+function isStoragePhoto(photo) {
+  return !!(photo && typeof photo === 'object' && photo.fullPath);
+}
+
+async function uploadDataUrlToStorage(path, dataUrl, contentType = 'image/jpeg') {
+  const blob = dataUrlToBlob(dataUrl);
+  const { error } = await sb.storage.from(STORAGE_BUCKET).upload(path, blob, {
+    contentType: blob.type || contentType,
+    upsert: true
+  });
+  if (error) throw error;
+  return { bucket: STORAGE_BUCKET, path, size: blob.size, contentType: blob.type || contentType };
+}
+
+async function uploadBlobToStorage(path, blob, contentType) {
+  const { error } = await sb.storage.from(STORAGE_BUCKET).upload(path, blob, {
+    contentType: contentType || blob.type || 'application/octet-stream',
+    upsert: true
+  });
+  if (error) throw error;
+  return { bucket: STORAGE_BUCKET, path, size: blob.size, contentType: contentType || blob.type || 'application/octet-stream' };
+}
+
+async function downloadStorageDataUrl(path) {
+  const { data, error } = await sb.storage.from(STORAGE_BUCKET).download(path);
+  if (error) throw error;
+  return blobToDataUrl(data, `Storage image read failed: ${path}`);
+}
+
+async function uploadReportPhotos(reportId, fullPhotos, thumbPhotos) {
+  const refs = [];
+  for (let i = 0; i < (fullPhotos || []).length; i++) {
+    const full = fullPhotos[i];
+    const thumb = thumbPhotos?.[i];
+    if (isStoragePhoto(full)) { refs.push(full); continue; }
+    if (typeof full !== 'string' || !full.startsWith('data:image')) continue;
+
+    const base = `reports/${safeStorageName(reportId)}/photos/photo-${String(i + 1).padStart(2, '0')}`;
+    const fullRef = await uploadDataUrlToStorage(`${base}.jpg`, full, 'image/jpeg');
+    const thumbData = (typeof thumb === 'string' && thumb.startsWith('data:image')) ? thumb : await createThumbnailDataUrl(full);
+    const thumbRef = await uploadDataUrlToStorage(`${base}-thumb.jpg`, thumbData, 'image/jpeg');
+    refs.push({
+      fullPath: fullRef.path,
+      thumbPath: thumbRef.path,
+      fullSize: fullRef.size,
+      thumbSize: thumbRef.size,
+      kind: 'supabase-storage-image'
+    });
+  }
+  return refs;
+}
+
+async function prepareReportForCloud(data) {
+  const cloudData = { ...data };
+  cloudData.photos = await uploadReportPhotos(data.id, data.photos || [], data.photoThumbs || []);
+  delete cloudData.photoThumbs;
+  cloudData.photoStorage = { bucket: STORAGE_BUCKET, count: cloudData.photos.length };
+  return cloudData;
+}
+
+async function uploadFinalPdfToStorage(data, pdfBlob) {
+  if (!pdfBlob) return null;
+  const reportId = safeStorageName(data.id);
+  const reportNo = safeStorageName(data.reportNo || data.id || 'report');
+  const path = `reports/${reportId}/pdf/${reportNo}.pdf`;
+  return uploadBlobToStorage(path, pdfBlob, 'application/pdf');
+}
+
+async function listStoragePaths(folder) {
+  const { data, error } = await sb.storage.from(STORAGE_BUCKET).list(folder, { limit: 100 });
+  if (error) throw error;
+  return (data || []).filter(item => item.name).map(item => `${folder}/${item.name}`);
+}
+
+async function sbDeleteReportAssets(id) {
+  const base = `reports/${safeStorageName(id)}`;
+  const paths = [];
+  for (const folder of [`${base}/photos`, `${base}/pdf`]) {
+    try { paths.push(...await listStoragePaths(folder)); }
+    catch(e) { console.warn('Storage list failed:', folder, e.message || e); }
+  }
+  if (paths.length === 0) return;
+  const { error } = await sb.storage.from(STORAGE_BUCKET).remove(paths);
+  if (error) throw error;
+}
+
 // ==================== NAVIGATION ====================
 async function showHome() {
   document.getElementById('homeScreen').classList.add('screen-active');
@@ -497,8 +609,12 @@ function resetForm() {
   document.getElementById('partsTbody').innerHTML = '';
   document.querySelectorAll('#photoArea img:not(.add-photo)').forEach(el => el.parentElement?.remove());
   photoDataUrls = [];
+  photoThumbUrls = [];
   addPartRow();
   editingDraftId = null;
+  lastGeneratedDoc = null;
+  lastGeneratedPdfBlob = null;
+  lastReportNo = '';
   document.getElementById('postSubmitCard').style.display = 'none';
 }
 
@@ -671,8 +787,8 @@ function shouldCompressFile(file, img) {
   return !isJpeg || oversized;
 }
 
-function resizePhotoToJpeg(img) {
-  const scale = Math.min(1, PHOTO_MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
+function resizeImageToJpeg(img, maxDimension, quality) {
+  const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight));
   const width = Math.max(1, Math.round(img.naturalWidth * scale));
   const height = Math.max(1, Math.round(img.naturalHeight * scale));
   const canvas = document.createElement('canvas');
@@ -682,26 +798,43 @@ function resizePhotoToJpeg(img) {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, width, height);
   ctx.drawImage(img, 0, 0, width, height);
-  return canvas.toDataURL('image/jpeg', PHOTO_JPEG_QUALITY);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+function resizePhotoToJpeg(img) {
+  return resizeImageToJpeg(img, PHOTO_MAX_DIMENSION, PHOTO_JPEG_QUALITY);
+}
+
+function resizeThumbToJpeg(img) {
+  return resizeImageToJpeg(img, PHOTO_THUMB_MAX_DIMENSION, PHOTO_THUMB_JPEG_QUALITY);
+}
+
+async function createThumbnailDataUrl(dataUrl) {
+  const img = await loadImage(dataUrl);
+  return resizeThumbToJpeg(img);
 }
 
 async function compressPhotoDataUrl(dataUrl) {
   const img = await loadImage(dataUrl);
-  if (!shouldCompressPhoto(dataUrl, img)) return dataUrl;
-
-  const compressedDataUrl = resizePhotoToJpeg(img);
-  return compressedDataUrl.length < dataUrl.length ? compressedDataUrl : dataUrl;
+  const fullDataUrl = shouldCompressPhoto(dataUrl, img) ? resizePhotoToJpeg(img) : dataUrl;
+  const compactFull = fullDataUrl.length < dataUrl.length ? fullDataUrl : dataUrl;
+  return { fullDataUrl: compactFull, thumbDataUrl: resizeThumbToJpeg(img) };
 }
 
 async function compressPhoto(file) {
   const objectUrl = URL.createObjectURL(file);
   try {
     const img = await loadImage(objectUrl);
-    if (!shouldCompressFile(file, img)) return blobToDataUrl(file, 'Photo read failed');
-
-    const compressedDataUrl = resizePhotoToJpeg(img);
-    if (compressedDataUrl.length < estimateDataUrlLength(file)) return compressedDataUrl;
-    return blobToDataUrl(file, 'Photo read failed');
+    let fullDataUrl;
+    if (shouldCompressFile(file, img)) {
+      const compressedDataUrl = resizePhotoToJpeg(img);
+      fullDataUrl = compressedDataUrl.length < estimateDataUrlLength(file)
+        ? compressedDataUrl
+        : await blobToDataUrl(file, 'Photo read failed');
+    } else {
+      fullDataUrl = await blobToDataUrl(file, 'Photo read failed');
+    }
+    return { fullDataUrl, thumbDataUrl: resizeThumbToJpeg(img) };
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
@@ -711,9 +844,14 @@ async function compressCurrentPhotos() {
   let changed = false;
   for (let i = 0; i < photoDataUrls.length; i++) {
     try {
-      const compressed = await compressPhotoDataUrl(photoDataUrls[i]);
-      if (compressed !== photoDataUrls[i]) {
-        photoDataUrls[i] = compressed;
+      if (isStoragePhoto(photoDataUrls[i])) continue;
+      const result = await compressPhotoDataUrl(photoDataUrls[i]);
+      if (result.fullDataUrl !== photoDataUrls[i]) {
+        photoDataUrls[i] = result.fullDataUrl;
+        changed = true;
+      }
+      if (!photoThumbUrls[i] || result.thumbDataUrl !== photoThumbUrls[i]) {
+        photoThumbUrls[i] = result.thumbDataUrl;
         changed = true;
       }
     } catch (e) {
@@ -732,7 +870,9 @@ async function addPhotos(input) {
   toast('Compressing photo' + (files.length > 1 ? 's' : '') + '...');
   for (const file of files) {
     try {
-      photoDataUrls.push(await compressPhoto(file));
+      const photo = await compressPhoto(file);
+      photoDataUrls.push(photo.fullDataUrl);
+      photoThumbUrls.push(photo.thumbDataUrl);
       added += 1;
       renderPhotos();
     } catch (e) {
@@ -754,7 +894,8 @@ function renderPhotos() {
   photoDataUrls.forEach((url, i) => {
     const div = document.createElement('div');
     div.style.cssText = 'position:relative;display:inline-block;';
-    div.innerHTML = `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1.5px solid #ddd;">
+    const previewUrl = photoThumbUrls[i] || url;
+    div.innerHTML = `<img src="${previewUrl}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1.5px solid #ddd;">
       <button onclick="removePhoto(${i})" style="position:absolute;top:-6px;right:-6px;background:#f44336;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;line-height:22px;">×</button>`;
     area.insertBefore(div, addBtn);
   });
@@ -762,7 +903,34 @@ function renderPhotos() {
 
 function removePhoto(i) {
   photoDataUrls.splice(i, 1);
+  photoThumbUrls.splice(i, 1);
   renderPhotos();
+}
+
+async function resolveReportPhotos(data) {
+  const full = [];
+  const thumbs = [];
+  const photos = data.photos || [];
+  const localThumbs = data.photoThumbs || [];
+  for (let i = 0; i < photos.length; i++) {
+    const photo = photos[i];
+    try {
+      if (typeof photo === 'string' && photo.startsWith('data:image')) {
+        full.push(photo);
+        thumbs.push(localThumbs[i] || await createThumbnailDataUrl(photo));
+      } else if (isStoragePhoto(photo)) {
+        const [fullData, thumbData] = await Promise.all([
+          downloadStorageDataUrl(photo.fullPath),
+          photo.thumbPath ? downloadStorageDataUrl(photo.thumbPath).catch(() => null) : Promise.resolve(null)
+        ]);
+        full.push(fullData);
+        thumbs.push(thumbData || await createThumbnailDataUrl(fullData));
+      }
+    } catch (e) {
+      console.error('Photo restore failed:', e);
+    }
+  }
+  return { full, thumbs };
 }
 
 // ==================== SAVE / LOAD DRAFT ====================
@@ -780,6 +948,7 @@ async function saveDraft(returnHome = false) {
     data.status = 'draft';
     data.updatedAt = new Date().toISOString();
     data.photos = photoDataUrls.slice();
+    data.photoThumbs = photoThumbUrls.slice();
     await saveReport(data);          // local cache
     const cloudSaved = await sbSaveReport(data);        // cloud sync
     editingDraftId = id;
@@ -806,7 +975,9 @@ async function loadDraft(id) {
   document.getElementById('headerTitle').textContent = 'Edit Report';
   resetForm();
   fillForm(data);
-  photoDataUrls = data.photos || [];
+  const restoredPhotos = await resolveReportPhotos(data);
+  photoDataUrls = restoredPhotos.full;
+  photoThumbUrls = restoredPhotos.thumbs;
   renderPhotos();
   requestAnimationFrame(() => requestAnimationFrame(() => {
     initSigPads();
@@ -1214,8 +1385,8 @@ async function submitReport() {
   data.status = 'completed';
   data.updatedAt = new Date().toISOString();
   data.photos = photoDataUrls.slice();
-  await saveReport(data);          // local cache
-  await sbSaveReport(data);        // cloud sync
+  data.photoThumbs = photoThumbUrls.slice();
+  await saveReport(data);          // local cache first, before PDF/cloud work
   if (data.svcPersonnel) localStorage.setItem('wit_default_personnel', data.svcPersonnel);
 
   toast('Generating PDF...');
@@ -1226,6 +1397,7 @@ async function submitReport() {
 
     // Use blob + manual download link to avoid navigating away (PWA/mobile)
     const blob = doc.output('blob');
+    lastGeneratedPdfBlob = blob;
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
@@ -1235,11 +1407,20 @@ async function submitReport() {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
 
+    try {
+      data.pdf = await uploadFinalPdfToStorage(data, blob);
+    } catch (storageErr) {
+      console.error('PDF storage upload failed:', storageErr);
+      data.pdfUploadFailed = true;
+    }
+    await saveReport(data);          // keep PDF metadata/failure flag locally
+    const cloudSaved = await sbSaveReport(data);        // cloud sync: uploads photos + stores PDF path
+
     // Show post-submit card
     document.getElementById('postSubmitMsg').textContent = `Report ${data.reportNo} was generated and downloaded.`;
     document.getElementById('postSubmitCard').style.display = 'block';
 
-    toast(`✅ ${data.reportNo} saved!`);
+    toast(cloudSaved ? `✅ ${data.reportNo} saved!` : `✅ ${data.reportNo} saved locally ⚠️ Cloud sync failed`);
   } catch(e) {
     toast('❌ PDF error: ' + e.message);
     return;
@@ -1252,9 +1433,19 @@ async function submitReport() {
 
 // ==================== SHAREPOINT ====================
 function downloadLastPDF() {
-  if (lastGeneratedDoc) {
-    lastGeneratedDoc.save(`${lastReportNo}.pdf`);
+  if (lastGeneratedPdfBlob) {
+    const blobUrl = URL.createObjectURL(lastGeneratedPdfBlob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `${lastReportNo || 'service-report'}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
     toast('PDF downloaded again ✅');
+  } else if (lastGeneratedDoc) {
+    lastGeneratedPdfBlob = lastGeneratedDoc.output('blob');
+    downloadLastPDF();
   } else {
     toast('No PDF in memory. Please re-generate.');
   }
@@ -1337,7 +1528,8 @@ async function deleteThis(id) {
     await deleteReport(id);    // local cache
   } catch(e) { console.error('Local delete failed:', e); }
   try {
-    await sbDeleteReport(id);  // cloud
+    await sbDeleteReportAssets(id);  // stored photos/PDF
+    await sbDeleteReport(id);        // cloud row
   } catch(e) {
     console.error('Cloud delete failed:', e);
     cloudDeleted = false;
