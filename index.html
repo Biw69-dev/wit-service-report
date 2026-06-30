@@ -733,7 +733,8 @@ function initSigPads() {
     sigPads[id] = new SignaturePad(canvas, {
       penColor: 'rgb(0,0,0)',
       minWidth: 1.2,
-      maxWidth: 2.4
+      maxWidth: 2.4,
+      throttle: 0
     });
 
     if (previousData) {
