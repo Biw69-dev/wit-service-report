@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#00695C">
-<title>WIT Service Report</title>
+<title>รายงานบริการ WIT</title>
 <link rel="manifest" href="manifest.json">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -113,21 +113,21 @@ body.signature-open { overflow: hidden; touch-action: none; }
   <div style="background:#fff; border-radius:16px; padding:32px 24px; max-width:360px; width:100%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
     <div style="text-align:center; margin-bottom:24px;">
       <img src="new-logo-wit.png" alt="WIT" style="width:120px; margin-bottom:12px;" onerror="this.style.display='none'">
-      <h2 style="color:#00695C; font-size:1.3rem;">WIT Service Report</h2>
-      <p style="color:#888; font-size:0.85rem; margin-top:4px;">Sign in to continue</p>
+      <h2 style="color:#00695C; font-size:1.3rem;">รายงานบริการ WIT</h2>
+      <p style="color:#888; font-size:0.85rem; margin-top:4px;">เข้าสู่ระบบเพื่อดำเนินการต่อ</p>
     </div>
     <div style="margin-bottom:12px;">
-      <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:4px;">EMAIL</label>
+      <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:4px;">อีเมล</label>
       <input type="email" id="loginEmail" placeholder="you@wit.co.th" autocomplete="username"
         style="width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:0.95rem;">
     </div>
     <div style="margin-bottom:16px;">
-      <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:4px;">PASSWORD</label>
+      <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:4px;">รหัสผ่าน</label>
       <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"
         style="width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:0.95rem;">
     </div>
     <button onclick="handleLogin()" style="width:100%; padding:14px; background:linear-gradient(135deg,#00695C,#00897B); color:#fff; border:none; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer;">
-      Sign In
+      เข้าสู่ระบบ
     </button>
     <p id="loginError" style="display:none; color:#f44336; font-size:0.8rem; text-align:center; margin-top:12px;"></p>
   </div>
@@ -142,11 +142,12 @@ body.signature-open { overflow: hidden; touch-action: none; }
 </script>
 
 <div class="app-header">
-  <span id="headerTitle">WIT Service Report</span>
+  <span id="headerTitle">รายงานบริการ WIT</span>
   <div style="display:flex; align-items:center; gap:8px;">
-    <span id="pendingBadge" class="badge">0 pending</span>
+    <span id="pendingBadge" class="badge">0 ร่าง</span>
+    <span id="cloudSyncBadge" style="font-size:0.65rem; opacity:0.8; background:rgba(255,255,255,0.15); padding:2px 7px; border-radius:10px;">☁️ กำลังเชื่อมต่อ...</span>
     <span id="userBadge" style="font-size:0.72rem; background:rgba(255,255,255,0.2); padding:3px 8px; border-radius:12px; display:none;"></span>
-    <button onclick="handleLogout()" title="Logout" style="background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;padding:2px 6px;">⏻</button>
+    <button onclick="handleLogout()" title="ออกจากระบบ" style="background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;padding:2px 6px;">⏻</button>
     <button onclick="showSettings()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:2px 6px;">⚙️</button>
   </div>
 </div>
@@ -645,7 +646,9 @@ async function showHome() {
   document.getElementById('homeScreen').classList.add('screen-active');
   document.getElementById('formScreen').classList.remove('screen-active');
   document.getElementById('settingsScreen').style.display = 'none';
-  document.getElementById('headerTitle').textContent = 'WIT Service Report';
+  document.getElementById('headerTitle').textContent = 'รายงานบริการ WIT';
+  document.getElementById('cloudSyncBadge').textContent = '☁️ กำลังเชื่อมต่อ...';
+  document.getElementById('cloudSyncBadge').style.color = '';
   editingDraftId = null;
   await loadReportList();
 }
@@ -653,7 +656,7 @@ async function showHome() {
 function showForm(draftId) {
   document.getElementById('homeScreen').classList.remove('screen-active');
   document.getElementById('formScreen').classList.add('screen-active');
-  document.getElementById('headerTitle').textContent = draftId ? 'Edit Draft' : 'New Report';
+  document.getElementById('headerTitle').textContent = draftId ? 'แก้ไขร่าง' : 'รายงานใหม่';
   resetForm();
   if (draftId) loadDraft(draftId);
   else requestAnimationFrame(() => requestAnimationFrame(() => initSigPads()));
@@ -1113,7 +1116,7 @@ async function addPhotos(input) {
 
   let added = 0;
   let failed = 0;
-  toast('Compressing photo' + (files.length > 1 ? 's' : '') + '...');
+  toast('กำลังบีบอัดรูป' + (files.length > 1 ? ' ' + files.length + ' รูป' : '') + '...');
   for (const file of files) {
     try {
       const photo = await compressPhoto(file);
@@ -1128,9 +1131,9 @@ async function addPhotos(input) {
     }
   }
   input.value = '';
-  if (added > 0 && failed > 0) toast(`${added} photo${added > 1 ? 's' : ''} added, ${failed} failed ⚠️`);
-  else if (added > 0) toast(`${added} photo${added > 1 ? 's' : ''} added ✅`);
-  else toast('No photos added ⚠️');
+  if (added > 0 && failed > 0) toast(`เพิ่ม ${added} รูป, ${failed} รูปล้มเหลว ⚠️`);
+  else if (added > 0) toast(`เพิ่ม ${added} รูปแล้ว ✅`);
+  else toast('ไม่สามารถเพิ่มรูปได้ ⚠️');
 }
 
 function openPhotoViewer(i) {
@@ -1155,7 +1158,7 @@ function openPhotoViewer(i) {
   cap.style.cssText = 'color:#fff;font-size:0.95rem;margin-top:12px;font-family:inherit;';
   overlay.appendChild(cap);
   const closeHint = document.createElement('p');
-  closeHint.textContent = 'Tap to close';
+  closeHint.textContent = 'แตะเพื่อปิด';
   closeHint.style.cssText = 'color:#999;font-size:0.75rem;margin-top:6px;font-family:inherit;';
   overlay.appendChild(closeHint);
 }
@@ -1227,7 +1230,7 @@ async function saveDraft(returnHome = false) {
   const btn = document.getElementById('saveDraftBtn');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = 'Saving...';
+    btn.textContent = 'กำลังบันทึก...';
   }
   try {
     await compressCurrentPhotos();
@@ -1242,15 +1245,15 @@ async function saveDraft(returnHome = false) {
     await saveReport(data);          // local cache
     const cloudSaved = await sbSaveReport(data);        // cloud sync
     editingDraftId = id;
-    toast(cloudSaved ? 'Draft saved 💾' : 'Draft saved locally ⚠️ Cloud sync failed');
+    toast(cloudSaved ? 'บันทึกร่างแล้ว ☁️' : 'บันทึกในเครื่อง ⚠️ ซิงค์คลาวด์ไม่สำเร็จ');
     if (returnHome) await showHome();
   } catch (err) {
     console.error('Save draft error:', err);
-    toast('Save draft failed ❌');
+    toast('บันทึกไม่สำเร็จ ❌');
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '💾 Save Draft';
+      btn.textContent = '💾 บันทึกร่าง';
     }
   }
 }
@@ -1262,7 +1265,7 @@ async function loadDraft(id) {
   editingDraftId = id;
   document.getElementById('homeScreen').classList.remove('screen-active');
   document.getElementById('formScreen').classList.add('screen-active');
-  document.getElementById('headerTitle').textContent = 'Edit Report';
+  document.getElementById('headerTitle').textContent = 'แก้ไขรายงาน';
   resetForm();
   fillForm(data);
   const restoredPhotos = await resolveReportPhotos(data);
@@ -1713,15 +1716,15 @@ async function generatePDF(data) {
 // ==================== SUBMIT ====================
 async function submitReport() {
   const data = getFormData();
-  if (!data.custName) return toast('⚠️ Please fill Customer Name');
-  if (!data.svcPersonnel) return toast('⚠️ Please fill Service Personnel');
-  if (!data.machine) return toast('⚠️ Please fill Machine');
-  if (data.svcTypes.length === 0) return toast('⚠️ Please select Type of Service');
-  if (!data.subject) return toast('⚠️ Please fill Subject');
-  if (!data.countermeasure) return toast('⚠️ Please fill Countermeasure');
-  if (isSignatureEmpty('sigCustomer')) return toast('⚠️ Customer signature required');
-  if (isSignatureEmpty('sigService')) return toast('⚠️ Service signature required');
-  if (isSignatureEmpty('sigApprove')) return toast('⚠️ Approve signature required');
+  if (!data.custName) return toast('⚠️ กรุณากรอกชื่อลูกค้า');
+  if (!data.svcPersonnel) return toast('⚠️ กรุณากรอกพนักงานบริการ');
+  if (!data.machine) return toast('⚠️ กรุณากรอกเครื่องจักร');
+  if (data.svcTypes.length === 0) return toast('⚠️ กรุณาเลือกประเภทการบริการ');
+  if (!data.subject) return toast('⚠️ กรุณากรอกหัวข้อ');
+  if (!data.countermeasure) return toast('⚠️ กรุณากรอกการดำเนินการ');
+  if (isSignatureEmpty('sigCustomer')) return toast('⚠️ กรุณาเซ็นลายเซ็นลูกค้า');
+  if (isSignatureEmpty('sigService')) return toast('⚠️ กรุณาเซ็นลายเซ็นพนักงาน');
+  if (isSignatureEmpty('sigApprove')) return toast('⚠️ กรุณาเซ็นผู้อนุมัติ');
 
   await compressCurrentPhotos();
 
@@ -1740,7 +1743,7 @@ async function submitReport() {
   await saveReport(data);          // local cache first, before PDF/cloud work
   if (data.svcPersonnel) localStorage.setItem('wit_default_personnel', data.svcPersonnel);
 
-  toast('Generating PDF...');
+  toast('กำลังสร้าง PDF...');
   try {
     const doc = await generatePDF(data);
     lastGeneratedDoc = doc;
@@ -1768,12 +1771,12 @@ async function submitReport() {
     const cloudSaved = await sbSaveReport(data);        // cloud sync: uploads photos + stores PDF path
 
     // Show post-submit card
-    document.getElementById('postSubmitMsg').textContent = `Report ${data.reportNo} was generated and downloaded.`;
+    document.getElementById('postSubmitMsg').textContent = `รายงาน ${data.reportNo} ถูกสร้างและดาวน์โหลดแล้ว`;
     document.getElementById('postSubmitCard').style.display = 'block';
 
-    toast(cloudSaved ? `✅ ${data.reportNo} saved!` : `✅ ${data.reportNo} saved locally ⚠️ Cloud sync failed`);
+    toast(cloudSaved ? `✅ ${data.reportNo} บันทึกแล้ว ☁️` : `✅ ${data.reportNo} บันทึกในเครื่อง ⚠️ ซิงค์คลาวด์ไม่สำเร็จ`);
   } catch(e) {
-    toast('❌ PDF error: ' + e.message);
+    toast('❌ สร้าง PDF ไม่สำเร็จ: ' + e.message);
     return;
   }
 
@@ -1793,26 +1796,26 @@ function downloadLastPDF() {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-    toast('PDF downloaded again ✅');
+    toast('ดาวน์โหลด PDF อีกครั้ง ✅');
   } else if (lastGeneratedDoc) {
     lastGeneratedPdfBlob = lastGeneratedDoc.output('blob');
     downloadLastPDF();
   } else {
-    toast('No PDF in memory. Please re-generate.');
+    toast('ไม่พบ PDF ในหน่วยความจำ กรุณาสร้างใหม่');
   }
 }
 
 function openSharePoint() {
   const url = localStorage.getItem('wit_sharepoint_url');
   if (!url) {
-    toast('⚠️ Set SharePoint URL in Settings first');
+    toast('⚠️ กรุณาตั้งค่า URL SharePoint ก่อน');
     document.getElementById('settingsScreen').style.display = 'block';
     document.getElementById('homeScreen').classList.remove('screen-active');
     document.getElementById('formScreen').classList.remove('screen-active');
     return;
   }
   window.open(url, '_blank');
-  toast('Opening SharePoint...');
+  toast('กำลังเปิด SharePoint...');
 }
 
 // ==================== SETTINGS ====================
@@ -1837,34 +1840,79 @@ function saveSettings() {
 
 // ==================== REPORT LIST ====================
 async function loadReportList() {
+  const cloudSyncEl = document.getElementById('cloudSyncBadge');
   const [cloudReports, localReports] = await Promise.all([
-    sbGetAllReports(),
-    getAllReports().catch(() => [])
+    sbGetAllReports().catch(() => { cloudSyncEl.textContent = '☁️ ออฟไลน์'; return null; })
+   ,getAllReports().catch(() => [])
   ]);
-  const reports = mergeReports(cloudReports || [], localReports || []);
+
+  // Cloud-first: cloud overrides local with same ID
+  const byId = new Map();
+  (localReports || []).forEach(r => byId.set(r.id, r));
+  (cloudReports || []).forEach(r => byId.set(r.id, { ...r, _fromCloud: true }));
+  const reports = Array.from(byId.values());
+
+  // Sync indicator
+  if (cloudReports !== null) {
+    const localOnly = reports.filter(r => !r._fromCloud).length;
+    cloudSyncEl.textContent = '☁️ เชื่อมต่อแล้ว';
+    cloudSyncEl.style.color = localOnly > 0 ? '#e65100' : '#2e7d32';
+    if (localOnly > 0) cloudSyncEl.textContent += ` (${localOnly} รอซิงค์)`;
+  }
+
   const list = document.getElementById('reportList');
   const empty = document.getElementById('emptyState');
   const badge = document.getElementById('pendingBadge');
+
   const pending = reports.filter(r => r.status === 'draft');
-  badge.textContent = pending.length + ' draft' + (pending.length !== 1 ? 's' : '');
-  badge.style.display = pending.length > 0 ? 'inline' : 'none';
-  if (reports.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  const badgeCount = pending.length;
+  badge.textContent = badgeCount + ' ร่าง' + (badgeCount > 0 ? '' : '');
+  badge.style.display = badgeCount > 0 ? 'inline' : 'none';
+
+  if (reports.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
   empty.style.display = 'none';
-  reports.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+  reports.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
   list.textContent = '';
+
   reports.forEach(r => {
     const item = document.createElement('div');
     item.className = 'list-item';
     item.addEventListener('click', () => openReport(r.id));
 
     const left = document.createElement('div');
+    const titleRow = document.createElement('div');
+    titleRow.style.cssText = 'display:flex;align-items:center;gap:6px;';
+
     const strong = document.createElement('strong');
-    strong.textContent = r.reportNo || '(Draft)';
-    left.appendChild(strong);
+    strong.textContent = r.reportNo || '(ร่าง)';
+    titleRow.appendChild(strong);
+
+    // Cloud-synced icon
+    if (r._fromCloud) {
+      const cloudIcon = document.createElement('span');
+      cloudIcon.textContent = '☁️';
+      cloudIcon.title = 'บันทึกบนคลาวด์';
+      cloudIcon.style.cssText = 'font-size:0.75rem;opacity:0.6;';
+      titleRow.appendChild(cloudIcon);
+    } else {
+      const localIcon = document.createElement('span');
+      localIcon.textContent = '💾';
+      localIcon.title = 'เฉพาะเครื่องนี้';
+      localIcon.style.cssText = 'font-size:0.7rem;opacity:0.5;';
+      titleRow.appendChild(localIcon);
+    }
+    left.appendChild(titleRow);
+
     const nameLine = document.createElement('div');
-    nameLine.style.fontSize = '0.82rem';
-    nameLine.textContent = (r.custName || 'No customer') + ' — ' + (r.machine || '');
+    nameLine.style.cssText = 'font-size:0.82rem;margin-top:2px;';
+    nameLine.textContent = (r.custName || 'ยังไม่มีชื่อลูกค้า') + ' — ' + (r.machine || '');
     left.appendChild(nameLine);
+
     const meta = document.createElement('div');
     meta.className = 'meta';
     meta.textContent = (r.svcDate || '') + ' • ' + (r.svcPersonnel || '');
@@ -1876,14 +1924,20 @@ async function loadReportList() {
     const dot = document.createElement('span');
     dot.className = 'status-dot ' + (r.status === 'completed' ? 'synced' : 'pending');
     right.appendChild(dot);
+
     const statusSpan = document.createElement('span');
     statusSpan.style.cssText = 'font-size:0.7rem;color:#888;';
-    statusSpan.textContent = r.status;
+    statusSpan.textContent = r.status === 'completed' ? 'สำเร็จ' : 'ร่าง';
     right.appendChild(statusSpan);
+
     const delBtn = document.createElement('button');
     delBtn.style.cssText = 'display:block;background:none;border:none;color:#f44336;font-size:0.7rem;cursor:pointer;margin-top:4px;';
-    delBtn.textContent = 'Delete';
+    delBtn.textContent = 'ลบ';
     delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteThis(r.id); });
+    if (!r._fromCloud) {
+      // Local-only reports can't be deleted by everyone
+      delBtn.title = 'รายงานนี้ยังไม่อัปโหลดขึ้นคลาวด์';
+    }
     right.appendChild(delBtn);
     item.appendChild(right);
 
@@ -1896,7 +1950,7 @@ async function openReport(id) {
 }
 
 async function deleteThis(id) {
-  if (!confirm('Delete this report?')) return;
+  if (!confirm('ลบรายงานนี้ใช่หรือไม่?')) return;
   markReportDeleted(id);
   let cloudDeleted = true;
   try {
@@ -1910,7 +1964,7 @@ async function deleteThis(id) {
     cloudDeleted = false;
   }
   await loadReportList();
-  toast(cloudDeleted ? 'Report deleted' : 'Deleted locally ⚠️ (cloud sync failed)');
+  toast(cloudDeleted ? 'ลบจากคลาวด์แล้ว ☁️' : 'ลบเฉพาะเครื่องนี้ ⚠️ (ซิงค์คลาวด์ล้มเหลว)');
 }
 
 function toast(msg) {
@@ -1955,7 +2009,7 @@ async function handleLogin() {
   const password = document.getElementById('loginPassword').value;
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
-  if (!email || !password) { errEl.textContent = 'Please enter email and password'; errEl.style.display = 'block'; return; }
+  if (!email || !password) { errEl.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; errEl.style.display = 'block'; return; }
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
   if (error) {
     errEl.textContent = error.message;
@@ -1970,7 +2024,7 @@ async function handleLogout() {
   await sb.auth.signOut();
   currentUser = null;
   showLogin();
-  toast('Logged out');
+  toast('ออกจากระบบแล้ว');
 }
 
 // ==================== INIT ====================
