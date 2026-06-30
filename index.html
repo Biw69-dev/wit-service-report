@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#00695C">
-<title>WIT Service Report</title>
+<title>รายงานบริการ WIT</title>
 <link rel="manifest" href="manifest.json">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -71,10 +71,23 @@ body.signature-open { overflow: hidden; touch-action: none; }
 @media (orientation: portrait) and (max-width: 720px) {
   .signature-modal-hint::after { content: ' หมุนเครื่องแนวนอนจะเขียนง่ายขึ้น'; color: #00897B; font-weight: 700; }
 }
-.photo-area { display: flex; flex-wrap: wrap; gap: 8px; }
-.photo-area img { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1.5px solid #ddd; }
-.add-photo { width: 80px; height: 80px; border: 2px dashed #ccc; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: #aaa; cursor: pointer; }
+/* Landscape: keep modal usable in fullscreen */
+@media (orientation: landscape) and (max-height: 500px) {
+  .signature-modal-header { padding: 4px 0; }
+  .signature-modal-actions button { padding: 6px 10px; font-size: 0.78rem; }
+  .signature-modal-hint { font-size: 0.7rem; }
+}
+/* Photo card style */
+.photo-card { position: relative; width: 100px; background: #fff; border-radius: 10px; border: 1.5px solid #e0e0e0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); transition: border-color 0.2s; }
+.photo-card:hover { border-color: #00897B; }
+.photo-card img { width: 100px; height: 80px; object-fit: cover; display: block; }
+.photo-card .photo-cap-input { width: 100%; padding: 4px 6px; border: none; border-top: 1px solid #eee; font-size: 0.68rem; font-family: inherit; background: #fafafa; border-radius: 0 0 8px 8px; }
+.photo-card .photo-cap-input:focus { outline: none; background: #e0f2f1; border-color: #00897B; }
+.photo-card .photo-cap-input::placeholder { color: #bbb; font-size: 0.64rem; }
+.photo-card .photo-del-btn { position: absolute; top: -2px; right: -2px; background: #f44336; color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 11px; cursor: pointer; line-height: 20px; text-align: center; padding: 0; }
+.add-photo { width: 100px; height: 80px; border: 2px dashed #ccc; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: #aaa; cursor: pointer; flex-shrink: 0; }
 .add-photo:hover { border-color: #00897B; color: #00897B; }
+.photo-area { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
 .btn-primary { display: block; width: 100%; padding: 14px; background: linear-gradient(135deg, #00695C, #00897B); color: #fff; border: none; border-radius: 10px; font-size: 1.05rem; font-weight: 600; cursor: pointer; margin-top: 8px; }
 .btn-primary:active { opacity: 0.9; transform: scale(0.98); }
 .btn-secondary { display: block; width: 100%; padding: 10px; background: #fff; color: #00897B; border: 1.5px solid #00897B; border-radius: 10px; font-size: 0.9rem; font-weight: 500; cursor: pointer; margin-top: 6px; }
@@ -100,21 +113,21 @@ body.signature-open { overflow: hidden; touch-action: none; }
   <div style="background:#fff; border-radius:16px; padding:32px 24px; max-width:360px; width:100%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
     <div style="text-align:center; margin-bottom:24px;">
       <img src="new-logo-wit.png" alt="WIT" style="width:120px; margin-bottom:12px;" onerror="this.style.display='none'">
-      <h2 style="color:#00695C; font-size:1.3rem;">WIT Service Report</h2>
-      <p style="color:#888; font-size:0.85rem; margin-top:4px;">Sign in to continue</p>
+      <h2 style="color:#00695C; font-size:1.3rem;">รายงานบริการ WIT</h2>
+      <p style="color:#888; font-size:0.85rem; margin-top:4px;">เข้าสู่ระบบเพื่อดำเนินการต่อ</p>
     </div>
     <div style="margin-bottom:12px;">
-      <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:4px;">EMAIL</label>
+      <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:4px;">อีเมล</label>
       <input type="email" id="loginEmail" placeholder="you@wit.co.th" autocomplete="username"
         style="width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:0.95rem;">
     </div>
     <div style="margin-bottom:16px;">
-      <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:4px;">PASSWORD</label>
+      <label style="display:block; font-size:0.75rem; font-weight:600; color:#555; margin-bottom:4px;">รหัสผ่าน</label>
       <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"
         style="width:100%; padding:12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:0.95rem;">
     </div>
     <button onclick="handleLogin()" style="width:100%; padding:14px; background:linear-gradient(135deg,#00695C,#00897B); color:#fff; border:none; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer;">
-      Sign In
+      เข้าสู่ระบบ
     </button>
     <p id="loginError" style="display:none; color:#f44336; font-size:0.8rem; text-align:center; margin-top:12px;"></p>
   </div>
@@ -129,9 +142,9 @@ body.signature-open { overflow: hidden; touch-action: none; }
 </script>
 
 <div class="app-header">
-  <span id="headerTitle">WIT Service Report</span>
+  <span id="headerTitle">รายงานบริการ WIT</span>
   <div style="display:flex; align-items:center; gap:8px;">
-    <span id="pendingBadge" class="badge">0 pending</span>
+    <span id="pendingBadge" class="badge">0 รอดำเนินการ</span>
     <span id="userBadge" style="font-size:0.72rem; background:rgba(255,255,255,0.2); padding:3px 8px; border-radius:12px; display:none;"></span>
     <button onclick="handleLogout()" title="Logout" style="background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;padding:2px 6px;">⏻</button>
     <button onclick="showSettings()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:2px 6px;">⚙️</button>
@@ -140,142 +153,143 @@ body.signature-open { overflow: hidden; touch-action: none; }
 
 <!-- HOME -->
 <div class="container home-screen" id="homeScreen">
-  <button class="btn-primary" onclick="showForm()">＋ New Service Report</button>
+  <button class="btn-primary" onclick="showForm()">＋ สร้างรายงานบริการใหม่</button>
   <div id="reportList" style="margin-top:12px;"></div>
-  <div class="empty-state" id="emptyState">No reports yet.<br>Tap "+ New Service Report" to start.</div>
+  <div class="empty-state" id="emptyState">ยังไม่มีรายงาน<br>กด "＋ สร้างรายงานบริการใหม่" เพื่อเริ่มต้น</div>
 </div>
 
 <!-- FORM -->
 <div class="container form-screen" id="formScreen">
   <div class="card">
     <div class="row">
-      <div class="field" style="flex:0 0 140px;"><label>Report No</label><input type="text" id="reportNo" readonly placeholder="Auto-generated"></div>
-      <div class="field"><label>Date</label><input type="date" id="svcDate"></div>
-      <div class="field"><label>Working Hours</label><input type="text" id="workingHours" placeholder="e.g. 09:00-14:30"></div>
+      <div class="field" style="flex:0 0 140px;"><label>เลขที่รายงาน</label><input type="text" id="reportNo" readonly placeholder="สร้างอัตโนมัติ"></div>
+      <div class="field"><label>วันที่</label><input type="date" id="svcDate"></div>
+      <div class="field"><label>เวลาทำงาน</label><input type="text" id="workingHours" placeholder="เช่น 09:00-14:30"></div>
     </div>
   </div>
 
   <div class="card">
-    <h3>Customer &amp; Machine</h3>
+    <h3>ข้อมูลลูกค้า &amp; เครื่องจักร</h3>
     <div class="row">
-      <div class="field" style="flex:2"><label>Customer Name *</label><input type="text" id="custName" required></div>
-      <div class="field"><label>Contact Person</label><input type="text" id="contactPerson"></div>
+      <div class="field" style="flex:2"><label>ชื่อลูกค้า *</label><input type="text" id="custName" required></div>
+      <div class="field"><label>ผู้ติดต่อ</label><input type="text" id="contactPerson"></div>
     </div>
     <div class="row">
-      <div class="field"><label>Service Personnel *</label><input type="text" id="svcPersonnel" required></div>
-      <div class="field"><label>Machine *</label><input type="text" id="machine" required></div>
+      <div class="field"><label>พนักงานบริการ *</label><input type="text" id="svcPersonnel" required></div>
+      <div class="field"><label>เครื่องจักร *</label><input type="text" id="machine" required></div>
     </div>
     <div class="row">
-      <div class="field"><label>Serial No</label><input type="text" id="serialNo"></div>
-      <div class="field"><label>Software Version</label><input type="text" id="swVersion"></div>
+      <div class="field"><label>หมายเลขซีเรียล</label><input type="text" id="serialNo"></div>
+      <div class="field"><label>เวอร์ชันซอฟต์แวร์</label><input type="text" id="swVersion"></div>
       <div class="field">
-        <label>Under Warranty</label>
+        <label>การรับประกัน</label>
         <div class="radio-group">
-          <label><input type="radio" name="warranty" value="YES"> YES</label>
-          <label><input type="radio" name="warranty" value="NO"> NO</label>
+          <label><input type="radio" name="warranty" value="YES"> ใช่</label>
+          <label><input type="radio" name="warranty" value="NO"> ไม่ใช่</label>
         </div>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <h3>Type of Service *</h3>
+    <h3>ประเภทการบริการ *</h3>
     <div class="checkbox-group" id="svcTypeGroup">
-      <label><input type="checkbox" value="INSTALLATION"> INSTALLATION</label>
-      <label><input type="checkbox" value="MAINTENANCE"> MAINTENANCE</label>
-      <label><input type="checkbox" value="INSPECTION"> INSPECTION</label>
-      <label><input type="checkbox" value="TROUBLESHOOT"> TROUBLESHOOT</label>
-      <label><input type="checkbox" value="OTHERS"> OTHERS</label>
+      <label><input type="checkbox" value="INSTALLATION"> ติดตั้ง</label>
+      <label><input type="checkbox" value="MAINTENANCE"> บำรุงรักษา</label>
+      <label><input type="checkbox" value="INSPECTION"> ตรวจสอบ</label>
+      <label><input type="checkbox" value="TROUBLESHOOT"> แก้ไขปัญหา</label>
+      <label><input type="checkbox" value="OTHERS"> อื่นๆ</label>
     </div>
   </div>
 
   <div class="card">
-    <h3>Service Details</h3>
-    <div class="field"><label>Subject *</label><textarea id="subject" rows="2"></textarea></div>
-    <div class="field"><label>Countermeasure / Action *</label><textarea id="countermeasure" rows="5"></textarea></div>
-    <div class="field"><label>Remark</label><textarea id="remark" rows="2"></textarea></div>
+    <h3>รายละเอียดการบริการ</h3>
+    <div class="field"><label>หัวข้อ *</label><textarea id="subject" rows="2"></textarea></div>
+    <div class="field"><label>มาตรการ / การดำเนินการ *</label><textarea id="countermeasure" rows="5"></textarea></div>
+    <div class="field"><label>หมายเหตุ</label><textarea id="remark" rows="2"></textarea></div>
   </div>
 
   <div class="card">
-    <h3>Parts</h3>
+    <h3>อะไหล่</h3>
     <div class="parts-wrap">
       <table class="parts" id="partsTable">
-        <thead><tr><th>Description</th><th>Part No.</th><th>Qty</th><th>Free/Chrg</th><th>From</th><th></th></tr></thead>
+        <thead><tr><th>รายละเอียด</th><th>หมายเลขอะไหล่</th><th>จำนวน</th><th>ฟรี/ค่าบริการ</th><th>จาก</th><th></th></tr></thead>
         <tbody id="partsTbody"></tbody>
       </table>
     </div>
-    <button class="btn-secondary" onclick="addPartRow()" style="font-size:0.8rem; padding:6px;">+ Add Part</button>
+    <button class="btn-secondary" onclick="addPartRow()" style="font-size:0.8rem; padding:6px;">+ เพิ่มอะไหล่</button>
   </div>
 
   <div class="card">
-    <h3>After Sale Service Fee</h3>
+    <h3>ค่าบริการหลังการขาย</h3>
     <div class="row">
       <div class="field">
         <div class="radio-group">
-          <label><input type="radio" name="feeCharge" value="FREE"> FREE</label>
-          <label><input type="radio" name="feeCharge" value="CHARGE"> CHARGE</label>
+          <label><input type="radio" name="feeCharge" value="FREE"> ฟรี</label>
+          <label><input type="radio" name="feeCharge" value="CHARGE"> คิดค่าใช้จ่าย</label>
         </div>
       </div>
-      <div class="field"><label>No. Personnel</label><input type="number" id="numPersonnel" min="0" value="1"></div>
-      <div class="field"><label>Hours</label><input type="number" id="svcHours" min="0" step="0.5"></div>
+      <div class="field"><label>จำนวนพนักงาน</label><input type="number" id="numPersonnel" min="0" value="1"></div>
+      <div class="field"><label>ชั่วโมง</label><input type="number" id="svcHours" min="0" step="0.5"></div>
     </div>
   </div>
 
   <div class="card">
-    <h3>Photos</h3>
+    <h3>รูปภาพ</h3>
+    <p style="font-size:0.7rem; color:#888; margin-bottom:6px;">แตะรูปเพื่อขยาย · พิมพ์รายละเอียดใต้รูป</p>
     <div class="photo-area" id="photoArea">
       <label class="add-photo">＋<input type="file" accept="image/*" multiple capture="environment" style="display:none" onchange="addPhotos(this)"></label>
     </div>
   </div>
 
   <div class="card">
-    <h3>Signatures</h3>
+    <h3>ลายเซ็น</h3>
     <div class="sig-section">
       <div class="sig-box">
-        <h4>Customer Sign</h4>
+        <h4>ลายเซ็นลูกค้า</h4>
         <canvas class="sig-canvas" id="sigCustomer" width="300" height="90"></canvas>
         <div class="sig-actions">
-          <button onclick="clearSig('sigCustomer')">Clear</button>
+          <button onclick="clearSig('sigCustomer')">ล้าง</button>
           <button class="sig-full-btn" onclick="openFullSignature('sigCustomer')">เซ็นเต็มจอ</button>
         </div>
-        <label style="font-size:0.7rem;">Date</label><input type="date" id="sigCustDate" style="font-size:0.75rem;">
+        <label style="font-size:0.7rem;">วันที่</label><input type="date" id="sigCustDate" style="font-size:0.75rem;">
       </div>
       <div class="sig-box">
-        <h4>Service Sign</h4>
+        <h4>ลายเซ็นพนักงานบริการ</h4>
         <canvas class="sig-canvas" id="sigService" width="300" height="90"></canvas>
         <div class="sig-actions">
-          <button onclick="clearSig('sigService')">Clear</button>
+          <button onclick="clearSig('sigService')">ล้าง</button>
           <button class="sig-full-btn" onclick="openFullSignature('sigService')">เซ็นเต็มจอ</button>
         </div>
-        <label style="font-size:0.7rem;">Date</label><input type="date" id="sigSvcDate" style="font-size:0.75rem;">
+        <label style="font-size:0.7rem;">วันที่</label><input type="date" id="sigSvcDate" style="font-size:0.75rem;">
       </div>
       <div class="sig-box">
-        <h4>Approve</h4>
+        <h4>ผู้อนุมัติ</h4>
         <canvas class="sig-canvas" id="sigApprove" width="300" height="90"></canvas>
         <div class="sig-actions">
-          <button onclick="clearSig('sigApprove')">Clear</button>
+          <button onclick="clearSig('sigApprove')">ล้าง</button>
           <button class="sig-full-btn" onclick="openFullSignature('sigApprove')">เซ็นเต็มจอ</button>
         </div>
-        <label style="font-size:0.7rem;">Date</label><input type="date" id="sigApproveDate" style="font-size:0.75rem;">
+        <label style="font-size:0.7rem;">วันที่</label><input type="date" id="sigApproveDate" style="font-size:0.75rem;">
       </div>
     </div>
   </div>
 
-  <button class="btn-primary" onclick="submitReport()">📄 Generate &amp; Download PDF</button>
-  <button class="btn-secondary" id="saveDraftBtn" onclick="saveDraft(true)">💾 Save Draft</button>
-  <button class="btn-secondary" onclick="showHome()" style="color:#999; border-color:#ccc;">← Back to Reports</button>
+  <button class="btn-primary" onclick="submitReport()">📄 สร้างและดาวน์โหลด PDF</button>
+  <button class="btn-secondary" id="saveDraftBtn" onclick="saveDraft(true)">💾 บันทึกร่าง</button>
+  <button class="btn-secondary" onclick="showHome()" style="color:#999; border-color:#ccc;">← กลับไปหน้ารายงาน</button>
 
   <!-- Post-submit result -->
   <div class="card" id="postSubmitCard" style="display:none; margin-top:12px; background:#e8f5e9; border:1.5px solid #4caf50;">
-    <h3 style="color:#2e7d32; border-color:#2e7d32;">✅ Report Generated</h3>
+    <h3 style="color:#2e7d32; border-color:#2e7d32;">✅ สร้างรายงานแล้ว</h3>
     <p style="font-size:0.9rem; margin-bottom:8px;" id="postSubmitMsg"></p>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button onclick="downloadLastPDF()" style="flex:1; padding:10px; background:#2e7d32; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">⬇ Download PDF Again</button>
-      <button onclick="openSharePoint()" style="flex:1; padding:10px; background:#0078d4; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">📁 Open SharePoint</button>
+      <button onclick="downloadLastPDF()" style="flex:1; padding:10px; background:#2e7d32; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">⬇ ดาวน์โหลด PDF อีกครั้ง</button>
+      <button onclick="openSharePoint()" style="flex:1; padding:10px; background:#0078d4; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">📁 เปิด SharePoint</button>
     </div>
     <p style="font-size:0.7rem; color:#666; margin-top:8px;">
-      💡 PDF saved to your Downloads folder.<br>
-      When back at office, upload to SharePoint or tap "Open SharePoint" above.
+      💡 PDF ถูกบันทึกไว้ที่โฟลเดอร์ดาวน์โหลด<br>
+      เมื่อกลับสำนักงาน ให้อัปโหลดไปที่ SharePoint หรือกด "เปิด SharePoint" ด้านบน
     </p>
   </div>
 
@@ -285,11 +299,11 @@ body.signature-open { overflow: hidden; touch-action: none; }
 <!-- Settings overlay -->
 <div class="container" id="settingsScreen" style="display:none;">
   <div class="card">
-    <h3>⚙️ Settings</h3>
-    <div class="field"><label>Default Personnel Name</label><input type="text" id="settingPersonnel" placeholder="Your name"></div>
-    <div class="field"><label>SharePoint Folder URL</label><input type="text" id="settingSharePoint" placeholder="https://xxx.sharepoint.com/sites/..."></div>
-    <button class="btn-primary" onclick="saveSettings()" style="font-size:0.9rem;">Save Settings</button>
-    <button class="btn-secondary" onclick="document.getElementById('settingsScreen').style.display='none'; showHome();">← Back</button>
+    <h3>⚙️ ตั้งค่า</h3>
+    <div class="field"><label>ชื่อพนักงานเริ่มต้น</label><input type="text" id="settingPersonnel" placeholder="ชื่อของคุณ"></div>
+    <div class="field"><label>URL โฟลเดอร์ SharePoint</label><input type="text" id="settingSharePoint" placeholder="https://xxx.sharepoint.com/sites/..."></div>
+    <button class="btn-primary" onclick="saveSettings()" style="font-size:0.9rem;">บันทึกการตั้งค่า</button>
+    <button class="btn-secondary" onclick="document.getElementById('settingsScreen').style.display='none'; showHome();">← กลับ</button>
   </div>
 </div>
 
@@ -344,6 +358,7 @@ const SIGNATURE_IDS = ['sigCustomer', 'sigService', 'sigApprove'];
 let editingDraftId = null;
 let photoDataUrls = [];
 let photoThumbUrls = [];
+let photoCaptions = [];
 let lastGeneratedDoc = null;
 let lastGeneratedPdfBlob = null;
 let lastReportNo = '';
@@ -629,7 +644,7 @@ async function showHome() {
   document.getElementById('homeScreen').classList.add('screen-active');
   document.getElementById('formScreen').classList.remove('screen-active');
   document.getElementById('settingsScreen').style.display = 'none';
-  document.getElementById('headerTitle').textContent = 'WIT Service Report';
+  document.getElementById('headerTitle').textContent = 'รายงานบริการ WIT';
   editingDraftId = null;
   await loadReportList();
 }
@@ -637,7 +652,7 @@ async function showHome() {
 function showForm(draftId) {
   document.getElementById('homeScreen').classList.remove('screen-active');
   document.getElementById('formScreen').classList.add('screen-active');
-  document.getElementById('headerTitle').textContent = draftId ? 'Edit Draft' : 'New Report';
+  document.getElementById('headerTitle').textContent = draftId ? 'แก้ไขรายงาน' : 'รายงานใหม่';
   resetForm();
   if (draftId) loadDraft(draftId);
   else requestAnimationFrame(() => requestAnimationFrame(() => initSigPads()));
@@ -670,6 +685,7 @@ function resetForm() {
   document.querySelectorAll('#photoArea img:not(.add-photo)').forEach(el => el.parentElement?.remove());
   photoDataUrls = [];
   photoThumbUrls = [];
+  photoCaptions = [];
   signatureDataUrls = {};
   SIGNATURE_IDS.forEach(id => {
     if (sigPads[id]) sigPads[id].clear();
@@ -725,6 +741,7 @@ function getFormData() {
     sigCustomer: getSignatureData('sigCustomer'),
     sigService: getSignatureData('sigService'),
     sigApprove: getSignatureData('sigApprove'),
+    photoCaptions: photoCaptions.slice(),
   };
 }
 
@@ -816,10 +833,10 @@ function initSigPads() {
 
 function getSignatureTitle(id) {
   return {
-    sigCustomer: 'Customer Sign',
-    sigService: 'Service Sign',
-    sigApprove: 'Approve'
-  }[id] || 'Signature';
+    sigCustomer: 'ลายเซ็นลูกค้า',
+    sigService: 'ลายเซ็นพนักงาน',
+    sigApprove: 'ผู้อนุมัติ'
+  }[id] || 'ลายเซ็น';
 }
 
 function initFullSigPad(dataUrl) {
@@ -1088,12 +1105,13 @@ async function addPhotos(input) {
 
   let added = 0;
   let failed = 0;
-  toast('Compressing photo' + (files.length > 1 ? 's' : '') + '...');
+  toast('กำลังบีบอัดรูป...');
   for (const file of files) {
     try {
       const photo = await compressPhoto(file);
       photoDataUrls.push(photo.fullDataUrl);
       photoThumbUrls.push(photo.thumbDataUrl);
+      photoCaptions.push('');
       added += 1;
       renderPhotos();
     } catch (e) {
@@ -1102,36 +1120,71 @@ async function addPhotos(input) {
     }
   }
   input.value = '';
-  if (added > 0 && failed > 0) toast(`${added} photo${added > 1 ? 's' : ''} added, ${failed} failed ⚠️`);
-  else if (added > 0) toast('Photo' + (added > 1 ? 's' : '') + ' added ✅');
-  else toast('No photos added ⚠️');
+  if (added > 0 && failed > 0) toast(`เพิ่ม ${added} รูป, ${failed} รูปล้มเหลว ⚠️`);
+  else if (added > 0) toast(`เพิ่ม ${added} รูป ✅`);
+  else toast('ไม่สามารถเพิ่มรูปได้ ⚠️');
+}
+
+function openPhotoViewer(i) {
+  const url = photoDataUrls[i];
+  if (!url) return;
+  // Simple fullscreen overlay viewer
+  let overlay = document.getElementById('photoViewer');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'photoViewer';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:1300;background:rgba(0,0,0,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;';
+    overlay.addEventListener('click', () => overlay.remove());
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = url;
+  img.style.cssText = 'max-width:95vw;max-height:82vh;object-fit:contain;border-radius:8px;';
+  overlay.appendChild(img);
+  const cap = document.createElement('p');
+  cap.textContent = photoCaptions[i] || `รูปที่ ${i+1}`;
+  cap.style.cssText = 'color:#fff;font-size:0.95rem;margin-top:12px;font-family:inherit;';
+  overlay.appendChild(cap);
+  const closeHint = document.createElement('p');
+  closeHint.textContent = 'แตะเพื่อปิด';
+  closeHint.style.cssText = 'color:#999;font-size:0.75rem;margin-top:6px;font-family:inherit;';
+  overlay.appendChild(closeHint);
 }
 
 function renderPhotos() {
   const area = document.getElementById('photoArea');
-  area.querySelectorAll('img:not(.add-photo)').forEach(el => el.parentElement?.remove());
+  area.querySelectorAll('.photo-card').forEach(el => el.remove());
   const keep = area.querySelectorAll('.add-photo');
   const addBtn = keep.length ? keep[0] : null;
   photoDataUrls.forEach((url, i) => {
-    const div = document.createElement('div');
-    div.style.cssText = 'position:relative;display:inline-block;';
+    const card = document.createElement('div');
+    card.className = 'photo-card';
     const previewUrl = photoThumbUrls[i] || url;
     const img = document.createElement('img');
     img.src = previewUrl;
-    img.style.cssText = 'width:80px;height:80px;object-fit:cover;border-radius:6px;border:1.5px solid #ddd;';
-    div.appendChild(img);
-    const btn = document.createElement('button');
-    btn.style.cssText = 'position:absolute;top:-6px;right:-6px;background:#f44336;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;line-height:22px;';
-    btn.textContent = '×';
-    btn.addEventListener('click', () => removePhoto(i));
-    div.appendChild(btn);
-    area.insertBefore(div, addBtn);
+    img.addEventListener('click', () => openPhotoViewer(i));
+    card.appendChild(img);
+    const delBtn = document.createElement('button');
+    delBtn.className = 'photo-del-btn';
+    delBtn.textContent = '×';
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); removePhoto(i); });
+    card.appendChild(delBtn);
+    const capInput = document.createElement('input');
+    capInput.type = 'text';
+    capInput.className = 'photo-cap-input';
+    capInput.placeholder = 'รายละเอียดรูป ' + (i+1);
+    capInput.value = photoCaptions[i] || '';
+    capInput.addEventListener('input', (e) => { photoCaptions[i] = e.target.value; });
+    card.appendChild(capInput);
+    area.insertBefore(card, addBtn);
   });
 }
 
 function removePhoto(i) {
   photoDataUrls.splice(i, 1);
   photoThumbUrls.splice(i, 1);
+  photoCaptions.splice(i, 1);
   renderPhotos();
 }
 
@@ -1166,7 +1219,7 @@ async function saveDraft(returnHome = false) {
   const btn = document.getElementById('saveDraftBtn');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = 'Saving...';
+    btn.textContent = 'กำลังบันทึก...';
   }
   try {
     await compressCurrentPhotos();
@@ -1177,18 +1230,19 @@ async function saveDraft(returnHome = false) {
     data.updatedAt = new Date().toISOString();
     data.photos = photoDataUrls.slice();
     data.photoThumbs = photoThumbUrls.slice();
+    data.photoCaptions = photoCaptions.slice();
     await saveReport(data);          // local cache
     const cloudSaved = await sbSaveReport(data);        // cloud sync
     editingDraftId = id;
-    toast(cloudSaved ? 'Draft saved 💾' : 'Draft saved locally ⚠️ Cloud sync failed');
+    toast(cloudSaved ? 'บันทึกร่างแล้ว 💾' : 'บันทึกในเครื่อง ⚠️ Cloud sync ล้มเหลว');
     if (returnHome) await showHome();
   } catch (err) {
     console.error('Save draft error:', err);
-    toast('Save draft failed ❌');
+    toast('บันทึกร่างไม่สำเร็จ ❌');
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '💾 Save Draft';
+      btn.textContent = '💾 บันทึกร่าง';
     }
   }
 }
@@ -1200,12 +1254,13 @@ async function loadDraft(id) {
   editingDraftId = id;
   document.getElementById('homeScreen').classList.remove('screen-active');
   document.getElementById('formScreen').classList.add('screen-active');
-  document.getElementById('headerTitle').textContent = 'Edit Report';
+  document.getElementById('headerTitle').textContent = 'แก้ไขรายงาน';
   resetForm();
   fillForm(data);
   const restoredPhotos = await resolveReportPhotos(data);
   photoDataUrls = restoredPhotos.full;
   photoThumbUrls = restoredPhotos.thumbs;
+  photoCaptions = data.photoCaptions || [];
   renderPhotos();
   requestAnimationFrame(() => requestAnimationFrame(() => {
     initSigPads();
@@ -1402,9 +1457,9 @@ async function generatePDF(data) {
   }
   doc.setTextColor(0);
   doc.setFontSize(17);
-  doc.text('SERVICE REPORT', W / 2, 17, { align: 'center' });
+  doc.text('รายงานการบริการ', W / 2, 17, { align: 'center' });
   doc.setFontSize(7.2);
-  doc.text('REPORT NO :', 166, 8);
+  doc.text('เลขที่รายงาน :', 166, 8);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(5.6);
   doc.text(data.reportNo || '', W - 4, 8, { align: 'right' });
@@ -1435,14 +1490,14 @@ async function generatePDF(data) {
   const b5 = y + row * 4 + 4.1;
   const b6 = y + row * 5 + 4.1;
 
-  label('CUSTOMER NAME :', L + 1, b1, 6.8); value(data.custName, L + 27, b1, 58, 5.9);
-  label('CONTACT PERSON :', L + 1, b2, 6.8); value(data.contactPerson, L + 28, b2, 57, 5.9);
-  label('DATE :', L + 1, b3, 6.8); value(data.svcDate, L + 13, b3, 27, 5.9);
-  label('WORKING HOURS :', L + 73, b3, 6.8); value(data.workingHours, L + 99, b3, 23, 5.9);
-  label('SERVICE PERSONNEL :', L + 1, b4, 6.8); value(data.svcPersonnel, L + 36, b4, 48, 5.9);
-  label('MACHINE :', L + 1, b5, 6.8); value(data.machine, L + 18, b5, 31, 5.9);
-  label('SERIAL NO :', L + 73, b5, 6.8); value(data.serialNo, L + 90, b5, 24, 5.9);
-  label('SOFTWARE VERSION :', L + 1, b6, 6.8); value(data.swVersion, L + 37, b6, 47, 5.9);
+  label('ชื่อลูกค้า :', L + 1, b1, 6.8); value(data.custName, L + 27, b1, 58, 5.9);
+  label('ผู้ติดต่อ :', L + 1, b2, 6.8); value(data.contactPerson, L + 28, b2, 57, 5.9);
+  label('วันที่ :', L + 1, b3, 6.8); value(data.svcDate, L + 13, b3, 27, 5.9);
+  label('เวลาทำงาน :', L + 73, b3, 6.8); value(data.workingHours, L + 99, b3, 23, 5.9);
+  label('พนักงานบริการ :', L + 1, b4, 6.8); value(data.svcPersonnel, L + 36, b4, 48, 5.9);
+  label('เครื่องจักร :', L + 1, b5, 6.8); value(data.machine, L + 18, b5, 31, 5.9);
+  label('หมายเลขซีเรียล :', L + 73, b5, 6.8); value(data.serialNo, L + 90, b5, 24, 5.9);
+  label('เวอร์ชันซอฟต์แวร์ :', L + 1, b6, 6.8); value(data.swVersion, L + 37, b6, 47, 5.9);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.4);
@@ -1453,7 +1508,7 @@ async function generatePDF(data) {
   doc.text('Bangrak, Bangkok 10500 THAILAND', rightX + 41, y + 15.5, { align: 'center' });
   doc.text('Email: sales_th@witjpn.com  Tel: (+66)2-237-2479', rightX + 41, y + 19.7, { align: 'center' });
 
-  label('UNDER WARRANTY :', rightX + 4, y + row * 5 + 1.4, 6.8);
+  label('การรับประกัน :', rightX + 4, y + row * 5 + 1.4, 6.8);
   checkBox(rightX + 43, y + row * 5 + 1.1, data.warranty === 'YES');
   label('YES', rightX + 48, y + row * 5 + 1.5, 6.5);
   checkBox(rightX + 66, y + row * 5 + 1.1, data.warranty === 'NO');
@@ -1463,36 +1518,42 @@ async function generatePDF(data) {
   y += topH;
   const typeH = 9;
   doc.rect(L, y, TW, typeH);
-  label('TYPE OF SERVICE :', L + 1, y + 6.0, 6.7);
-  const svcLabels = ['INSTALLATION', 'MAINTENANCE', 'INSPECTION', 'TROUBLESHOOT', 'OTHERS'];
+  label('ประเภทการบริการ :', L + 1, y + 6.0, 6.7);
+  const svcLabels = [
+    {label:'ติดตั้ง', value:'INSTALLATION'},
+    {label:'บำรุงรักษา', value:'MAINTENANCE'},
+    {label:'ตรวจสอบ', value:'INSPECTION'},
+    {label:'แก้ไขปัญหา', value:'TROUBLESHOOT'},
+    {label:'อื่นๆ', value:'OTHERS'}
+  ];
   const svcXs = [34, 68, 101, 137, 178];
-  svcLabels.forEach((name, i) => {
-    const checked = (data.svcTypes || []).includes(name);
+  svcLabels.forEach((item, i) => {
+    const checked = (data.svcTypes || []).includes(item.value);
     checkBox(svcXs[i], y + 5.9, checked);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(5.9);
-    doc.text(name, svcXs[i] + 4, y + 6.2);
+    doc.text(item.label, svcXs[i] + 4, y + 6.2);
   });
 
   // Subject
   y += typeH;
   const subjectH = 18;
   doc.rect(L, y, TW, subjectH);
-  label('SUBJECT :', L + 1, y + 5.3);
+  label('หัวข้อ :', L + 1, y + 5.3);
   sectionText(data.subject, L + 2, y + 10.5, TW - 5, 120);
 
   // Countermeasure large area
   y += subjectH;
   const counterH = 122;
   doc.rect(L, y, TW, counterH);
-  label('COUNTERMEASURE / ACTION :', L + 1, y + 5.3);
+  label('มาตรการ / การดำเนินการ :', L + 1, y + 5.3);
   sectionText(data.countermeasure, L + 2, y + 10.5, TW - 5, 900);
 
   // Remark
   y += counterH;
   const remarkH = 37;
   doc.rect(L, y, TW, remarkH);
-  label('REMARK :', L + 1, y + 5.3);
+  label('หมายเหตุ :', L + 1, y + 5.3);
   sectionText(data.remark, L + 2, y + 10.5, TW - 5, 220);
 
   // Parts table, 3 rows like original
@@ -1505,7 +1566,7 @@ async function generatePDF(data) {
   for (let i = 1; i < partX.length - 1; i++) doc.line(partX[i], y, partX[i], y + partHeadH + partRowH * 3);
   doc.line(L, y + partHeadH, R, y + partHeadH);
   for (let i = 1; i < 3; i++) doc.line(L, y + partHeadH + partRowH * i, R, y + partHeadH + partRowH * i);
-  ['PARTS DESCRIPTION', 'PART NO.', 'QTY', 'CHARGES', 'FROM'].forEach((h, i) => {
+  ['รายละเอียดอะไหล่', 'หมายเลขอะไหล่', 'จำนวน', 'ค่าบริการ', 'จาก'].forEach((h, i) => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6.3);
     doc.text(h, (partX[i] + partX[i + 1]) / 2, y + 3.6, { align: 'center' });
@@ -1529,12 +1590,12 @@ async function generatePDF(data) {
   const feeH = 6;
   doc.rect(L, y, TW, feeH);
   doc.line(L + 99, y, L + 99, y + feeH);
-  label('AFTER SALE SERVICE FEE :', L + 1, y + 4.3, 6.8);
-  checkBox(L + 40, y + 4.1, data.feeCharge === 'FREE'); label('FREE', L + 44, y + 4.4, 6.3);
-  checkBox(L + 53, y + 4.1, data.feeCharge === 'CHARGE'); label('CHARGE', L + 57, y + 4.4, 6.3);
-  label('NO. PERSONNEL (', L + 101, y + 4.3, 6.8);
+  label('ค่าบริการหลังการขาย :', L + 1, y + 4.3, 6.8);
+  checkBox(L + 40, y + 4.1, data.feeCharge === 'FREE'); label('ฟรี', L + 44, y + 4.4, 6.3);
+  checkBox(L + 53, y + 4.1, data.feeCharge === 'CHARGE'); label('คิดค่าใช้จ่าย', L + 57, y + 4.4, 6.3);
+  label('จำนวนพนักงาน (', L + 101, y + 4.3, 6.8);
   value(data.numPersonnel, L + 132, y + 4.3, 4, 6.4);
-  label(') HOURS (', L + 144, y + 4.3, 6.8);
+  label(') ชั่วโมง (', L + 144, y + 4.3, 6.8);
   value(data.svcHours, L + 164, y + 4.3, 5, 6.4);
   label(')', L + 185, y + 4.3, 6.8);
 
@@ -1547,7 +1608,7 @@ async function generatePDF(data) {
   doc.line(L + sigW, y, L + sigW, y + sigHeaderH + sigH);
   doc.line(L + sigW * 2, y, L + sigW * 2, y + sigHeaderH + sigH);
   doc.line(L, y + sigHeaderH, R, y + sigHeaderH);
-  ['CUSTOMER SIGN', 'SERVICE SIGN', 'APPOVE'].forEach((h, i) => {
+  ['ลายเซ็นลูกค้า', 'ลายเซ็นพนักงาน', 'ผู้อนุมัติ'].forEach((h, i) => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.text(h, L + sigW * i + sigW / 2, y + 3.7, { align: 'center' });
@@ -1574,23 +1635,67 @@ async function generatePDF(data) {
   doc.setTextColor(0);
   doc.text("CUSTOMER'S COPY (WHITE) / OFFICE COPY (YELLOW) / ENGINEER COPY (BLUE)", W / 2, y + 4, { align: 'center' });
 
-  // PHOTOS PAGE
+  // PHOTOS PAGE — form-style card layout, larger images
   if (photoDataUrls.length > 0) {
     doc.addPage();
-    doc.setFontSize(10);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0);
-    doc.text('Attached Photos', 14, 12);
+    doc.setTextColor('#00695C');
+    doc.text('รูปภาพประกอบ', 14, 14);
 
-    let px = 14, py = 20;
-    const tw = 55, th = 41;
+    const captions = data.photoCaptions || [];
+    const margin = 12;
+    const gap = 8;
+    const imgPerRow = 2;
+    const cardPad = 6;
+    const capH = 10;  // caption height per line
+    const labelH = 4;
+    const cardW = (W - margin * 2 - gap) / imgPerRow;
+    const imgW = cardW - cardPad * 2;
+    const imgH = imgW * 0.7;  // ~3:4 aspect for photos
+
+    let cy = 22;
     for (let i = 0; i < photoDataUrls.length; i++) {
-      if (px + tw > W - 14) { px = 14; py += th + 10; }
-      if (py + th > 280) { doc.addPage(); py = 14; px = 14; }
-      try { doc.addImage(photoDataUrls[i], 'JPEG', px, py, tw, th); } catch(e) { doc.text(`[Photo ${i+1}]`, px, py + 10); }
-      doc.setFontSize(6);
-      doc.text(`Photo ${i+1}`, px, py + th + 3);
-      px += tw + 4;
+      const col = i % imgPerRow;
+      const cx = margin + col * (cardW + gap);
+
+      // Card background
+      doc.setDrawColor('#e0e0e0');
+      doc.setFillColor('#ffffff');
+      doc.roundedRect(cx, cy, cardW, imgH + capH + cardPad * 2, 2, 2, 'FD');
+
+      // Image
+      try {
+        doc.addImage(photoDataUrls[i], 'JPEG', cx + cardPad, cy + cardPad, imgW, imgH);
+      } catch(e) {
+        doc.setFontSize(8);
+        doc.text(`[รูปที่ ${i+1}]`, cx + cardPad + 10, cy + cardPad + imgH/2);
+      }
+
+      // Caption
+      const cap = captions[i] || '';
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor('#00695C');
+      doc.text(`รูปที่ ${i+1}`, cx + cardPad, cy + cardPad + imgH + labelH + 3);
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor('#444');
+      if (cap) {
+        pdfValueLines(cap, cx + cardPad, cy + cardPad + imgH + labelH + capH - 2, cardW - cardPad * 2);
+      } else {
+        doc.text('-', cx + cardPad, cy + cardPad + imgH + labelH + capH - 2);
+      }
+      doc.setTextColor(0);
+
+      // Move to next row
+      if (col === imgPerRow - 1) {
+        cy += imgH + capH + cardPad * 2 + gap;
+        if (cy + imgH + capH + cardPad * 2 > 280 && i < photoDataUrls.length - 1) {
+          doc.addPage();
+          cy = 14;
+        }
+      }
     }
   }
 
@@ -1600,15 +1705,15 @@ async function generatePDF(data) {
 // ==================== SUBMIT ====================
 async function submitReport() {
   const data = getFormData();
-  if (!data.custName) return toast('⚠️ Please fill Customer Name');
-  if (!data.svcPersonnel) return toast('⚠️ Please fill Service Personnel');
-  if (!data.machine) return toast('⚠️ Please fill Machine');
-  if (data.svcTypes.length === 0) return toast('⚠️ Please select Type of Service');
-  if (!data.subject) return toast('⚠️ Please fill Subject');
-  if (!data.countermeasure) return toast('⚠️ Please fill Countermeasure');
-  if (isSignatureEmpty('sigCustomer')) return toast('⚠️ Customer signature required');
-  if (isSignatureEmpty('sigService')) return toast('⚠️ Service signature required');
-  if (isSignatureEmpty('sigApprove')) return toast('⚠️ Approve signature required');
+  if (!data.custName) return toast('⚠️ กรุณากรอกชื่อลูกค้า');
+  if (!data.svcPersonnel) return toast('⚠️ กรุณากรอกพนักงานบริการ');
+  if (!data.machine) return toast('⚠️ กรุณากรอกเครื่องจักร');
+  if (data.svcTypes.length === 0) return toast('⚠️ กรุณาเลือกประเภทการบริการ');
+  if (!data.subject) return toast('⚠️ กรุณากรอกหัวข้อ');
+  if (!data.countermeasure) return toast('⚠️ กรุณากรอกมาตรการ/การดำเนินการ');
+  if (isSignatureEmpty('sigCustomer')) return toast('⚠️ กรุณาเซ็นลายเซ็นลูกค้า');
+  if (isSignatureEmpty('sigService')) return toast('⚠️ กรุณาเซ็นลายเซ็นพนักงานบริการ');
+  if (isSignatureEmpty('sigApprove')) return toast('⚠️ กรุณาเซ็นลายเซ็นผู้อนุมัติ');
 
   await compressCurrentPhotos();
 
@@ -1623,10 +1728,11 @@ async function submitReport() {
   data.updatedAt = new Date().toISOString();
   data.photos = photoDataUrls.slice();
   data.photoThumbs = photoThumbUrls.slice();
+  data.photoCaptions = photoCaptions.slice();
   await saveReport(data);          // local cache first, before PDF/cloud work
   if (data.svcPersonnel) localStorage.setItem('wit_default_personnel', data.svcPersonnel);
 
-  toast('Generating PDF...');
+  toast('กำลังสร้าง PDF...');
   try {
     const doc = await generatePDF(data);
     lastGeneratedDoc = doc;
@@ -1654,10 +1760,10 @@ async function submitReport() {
     const cloudSaved = await sbSaveReport(data);        // cloud sync: uploads photos + stores PDF path
 
     // Show post-submit card
-    document.getElementById('postSubmitMsg').textContent = `Report ${data.reportNo} was generated and downloaded.`;
+    document.getElementById('postSubmitMsg').textContent = `รายงาน ${data.reportNo} ถูกสร้างและดาวน์โหลดแล้ว`;
     document.getElementById('postSubmitCard').style.display = 'block';
 
-    toast(cloudSaved ? `✅ ${data.reportNo} saved!` : `✅ ${data.reportNo} saved locally ⚠️ Cloud sync failed`);
+    toast(cloudSaved ? `✅ ${data.reportNo} บันทึกแล้ว!` : `✅ ${data.reportNo} บันทึกในเครื่อง ⚠️ Cloud sync ล้มเหลว`);
   } catch(e) {
     toast('❌ PDF error: ' + e.message);
     return;
@@ -1679,26 +1785,26 @@ function downloadLastPDF() {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-    toast('PDF downloaded again ✅');
+    toast('ดาวน์โหลด PDF อีกครั้ง ✅');
   } else if (lastGeneratedDoc) {
     lastGeneratedPdfBlob = lastGeneratedDoc.output('blob');
     downloadLastPDF();
   } else {
-    toast('No PDF in memory. Please re-generate.');
+    toast('ไม่พบ PDF ในหน่วยความจำ กรุณาสร้างใหม่');
   }
 }
 
 function openSharePoint() {
   const url = localStorage.getItem('wit_sharepoint_url');
   if (!url) {
-    toast('⚠️ Set SharePoint URL in Settings first');
+    toast('⚠️ กรุณาตั้งค่า URL SharePoint ในหน้าการตั้งค่า');
     document.getElementById('settingsScreen').style.display = 'block';
     document.getElementById('homeScreen').classList.remove('screen-active');
     document.getElementById('formScreen').classList.remove('screen-active');
     return;
   }
   window.open(url, '_blank');
-  toast('Opening SharePoint...');
+  toast('กำลังเปิด SharePoint...');
 }
 
 // ==================== SETTINGS ====================
@@ -1706,7 +1812,7 @@ function showSettings() {
   document.getElementById('homeScreen').classList.remove('screen-active');
   document.getElementById('formScreen').classList.remove('screen-active');
   document.getElementById('settingsScreen').style.display = 'block';
-  document.getElementById('headerTitle').textContent = '⚙️ Settings';
+  document.getElementById('headerTitle').textContent = '⚙️ ตั้งค่า';
   document.getElementById('settingPersonnel').value = localStorage.getItem('wit_default_personnel') || '';
   document.getElementById('settingSharePoint').value = localStorage.getItem('wit_sharepoint_url') || '';
 }
@@ -1717,7 +1823,7 @@ function saveSettings() {
   if (name) localStorage.setItem('wit_default_personnel', name);
   if (spUrl) localStorage.setItem('wit_sharepoint_url', spUrl);
   document.getElementById('settingsScreen').style.display = 'none';
-  toast('Settings saved ✅');
+  toast('บันทึกการตั้งค่าแล้ว ✅');
   showHome();
 }
 
@@ -1732,7 +1838,7 @@ async function loadReportList() {
   const empty = document.getElementById('emptyState');
   const badge = document.getElementById('pendingBadge');
   const pending = reports.filter(r => r.status === 'draft');
-  badge.textContent = pending.length + ' draft' + (pending.length !== 1 ? 's' : '');
+  badge.textContent = pending.length + ' ร่าง' + (pending.length > 1 ? '' : '');
   badge.style.display = pending.length > 0 ? 'inline' : 'none';
   if (reports.length === 0) { list.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
@@ -1745,11 +1851,11 @@ async function loadReportList() {
 
     const left = document.createElement('div');
     const strong = document.createElement('strong');
-    strong.textContent = r.reportNo || '(Draft)';
+    strong.textContent = r.reportNo || '(ร่าง)';
     left.appendChild(strong);
     const nameLine = document.createElement('div');
     nameLine.style.fontSize = '0.82rem';
-    nameLine.textContent = (r.custName || 'No customer') + ' — ' + (r.machine || '');
+    nameLine.textContent = (r.custName || 'ไม่มีชื่อลูกค้า') + ' — ' + (r.machine || '');
     left.appendChild(nameLine);
     const meta = document.createElement('div');
     meta.className = 'meta';
@@ -1764,11 +1870,11 @@ async function loadReportList() {
     right.appendChild(dot);
     const statusSpan = document.createElement('span');
     statusSpan.style.cssText = 'font-size:0.7rem;color:#888;';
-    statusSpan.textContent = r.status;
+    statusSpan.textContent = r.status === 'completed' ? 'เสร็จ' : 'ร่าง';
     right.appendChild(statusSpan);
     const delBtn = document.createElement('button');
     delBtn.style.cssText = 'display:block;background:none;border:none;color:#f44336;font-size:0.7rem;cursor:pointer;margin-top:4px;';
-    delBtn.textContent = 'Delete';
+    delBtn.textContent = 'ลบ';
     delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteThis(r.id); });
     right.appendChild(delBtn);
     item.appendChild(right);
@@ -1782,7 +1888,7 @@ async function openReport(id) {
 }
 
 async function deleteThis(id) {
-  if (!confirm('Delete this report?')) return;
+  if (!confirm('ลบรายงานนี้ใช่หรือไม่?')) return;
   markReportDeleted(id);
   let cloudDeleted = true;
   try {
@@ -1796,7 +1902,7 @@ async function deleteThis(id) {
     cloudDeleted = false;
   }
   await loadReportList();
-  toast(cloudDeleted ? 'Report deleted' : 'Deleted locally ⚠️ (cloud sync failed)');
+  toast(cloudDeleted ? 'ลบรายงานแล้ว' : 'ลบในเครื่อง ⚠️ (Cloud sync ล้มเหลว)');
 }
 
 function toast(msg) {
@@ -1841,7 +1947,7 @@ async function handleLogin() {
   const password = document.getElementById('loginPassword').value;
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
-  if (!email || !password) { errEl.textContent = 'Please enter email and password'; errEl.style.display = 'block'; return; }
+  if (!email || !password) { errEl.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; errEl.style.display = 'block'; return; }
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
   if (error) {
     errEl.textContent = error.message;
@@ -1856,7 +1962,7 @@ async function handleLogout() {
   await sb.auth.signOut();
   currentUser = null;
   showLogin();
-  toast('Logged out');
+  toast('ออกจากระบบแล้ว');
 }
 
 // ==================== INIT ====================
