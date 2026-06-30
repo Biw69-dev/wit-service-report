@@ -1128,7 +1128,7 @@ async function addPhotos(input) {
 
   let added = 0;
   let failed = 0;
-  toast('Compressing photo' + (files.length > 1 ? ' ' + files.length's' : '') + '...');
+  toast('Compressing photo' + (files.length > 1 ? ' ' + files.length + 's' : '') + '...');
   for (const file of files) {
     try {
       const photo = await compressPhoto(file);
