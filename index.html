@@ -69,7 +69,7 @@ body.signature-open { overflow: hidden; touch-action: none; }
 #sigFullCanvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
 .signature-modal-hint { font-size: 0.8rem; color: #666; text-align: center; line-height: 1.35; }
 @media (orientation: portrait) and (max-width: 720px) {
-  .signature-modal-hint::after { content: ' Rotate to landscape for easier signing'; color: #00897B; font-weight: 700; }
+  .signature-modal-hint::after { content: ' หมุนแนวนอนจะเขียนง่ายขึ้น'; color: #00897B; font-weight: 700; }
 }
 /* Landscape: keep modal usable in fullscreen */
 @media (orientation: landscape) and (max-height: 500px) {
@@ -321,7 +321,7 @@ body.signature-open { overflow: hidden; touch-action: none; }
   <div class="signature-modal-canvas-wrap">
     <canvas id="sigFullCanvas"></canvas>
   </div>
-  <div class="signature-modal-hint">Use your finger to sign in full screen. Landscape is locked on mobile while signing.</div>
+  <div class="signature-modal-hint">เขียนลายเซ็นเต็มจอ — ใช้ได้ทั้งแนวตั้งและแนวนอน</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -354,8 +354,8 @@ let signatureDataUrls = {};
 let activeSignatureId = null;
 let fullSigPad = null;
 let fullSignatureCleared = false;
-let signatureOrientationLocked = false;
 const SIGNATURE_IDS = ['sigCustomer', 'sigService', 'sigApprove'];
+const SIG_PEN_COLOR = 'rgb(20, 60, 180)';   // blue ballpoint pen
 let editingDraftId = null;
 let photoDataUrls = [];
 let photoThumbUrls = [];
@@ -819,10 +819,9 @@ function initSigPads() {
     resizeSignatureCanvas(canvas);
 
     sigPads[id] = new SignaturePad(canvas, {
-      penColor: 'rgb(0,0,0)',
+      penColor: SIG_PEN_COLOR,
       minWidth: 1.2,
-      maxWidth: 2.4,
-      throttle: 0
+      maxWidth: 2.4
     });
 
     if (previousData) {
@@ -834,10 +833,10 @@ function initSigPads() {
 
 function getSignatureTitle(id) {
   return {
-    sigCustomer: 'Customer Sign',
-    sigService: 'Service Sign',
-    sigApprove: 'Approve'
-  }[id] || 'Signature';
+    sigCustomer: 'ลายเซ็นลูกค้า',
+    sigService: 'ลายเซ็นพนักงาน',
+    sigApprove: 'ผู้อนุมัติ'
+  }[id] || 'ลายเซ็น';
 }
 
 function initFullSigPad(dataUrl) {
@@ -845,11 +844,18 @@ function initFullSigPad(dataUrl) {
   if (!canvas) return;
   if (fullSigPad && fullSigPad.off) fullSigPad.off();
   resizeSignatureCanvas(canvas);
+
+  // Scale pen width so stroke looks the same as on the small pad
+  const normalW = 300;                     // small canvas CSS width
+  const fullW = canvas.getBoundingClientRect().width || normalW;
+  const scale = fullW / normalW;
+  const minW = Math.max(1, 1.2 * scale);
+  const maxW = Math.max(minW + 0.3, 2.4 * scale);
+
   fullSigPad = new SignaturePad(canvas, {
-    penColor: 'rgb(0,0,0)',
-    minWidth: 1.5,
-    maxWidth: 3.2,
-    throttle: 0
+    penColor: SIG_PEN_COLOR,
+    minWidth: minW,
+    maxWidth: maxW
   });
   fullSigPad.addEventListener('endStroke', () => { fullSignatureCleared = false; });
   if (dataUrl) {
@@ -857,41 +863,17 @@ function initFullSigPad(dataUrl) {
   }
 }
 
-async function lockSignatureLandscape() {
-  // Most mobile browsers only allow orientation lock while in fullscreen.
-  // If unsupported (e.g. iOS Safari), continue without blocking signing.
-  try {
-    if (screen.orientation && screen.orientation.lock) {
-      await screen.orientation.lock('landscape');
-      signatureOrientationLocked = true;
-    }
-  } catch (e) {
-    signatureOrientationLocked = false;
-  }
-}
-
-function unlockSignatureOrientation() {
-  if (!signatureOrientationLocked) return;
-  try {
-    if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
-  } catch (e) {}
-  signatureOrientationLocked = false;
-}
-
 function openFullSignature(id) {
   activeSignatureId = id;
   fullSignatureCleared = false;
   const modal = document.getElementById('signatureModal');
-  document.getElementById('signatureModalTitle').textContent = `${getSignatureTitle(id)} - Full Screen`;
+  document.getElementById('signatureModalTitle').textContent = `${getSignatureTitle(id)}`;
   modal.classList.add('active');
   modal.setAttribute('aria-hidden', 'false');
   document.body.classList.add('signature-open');
+  // Go fullscreen if supported (makes signing easier) — don't force orientation
   if (modal.requestFullscreen && !document.fullscreenElement) {
-    modal.requestFullscreen()
-      .then(() => lockSignatureLandscape())
-      .catch(() => lockSignatureLandscape());
-  } else {
-    lockSignatureLandscape();
+    modal.requestFullscreen().catch(() => {});
   }
   const previousData = getSignatureData(id);
   requestAnimationFrame(() => requestAnimationFrame(() => initFullSigPad(previousData)));
@@ -912,7 +894,7 @@ function closeFullSignature(save) {
         sigPads[activeSignatureId].clear();
         try { sigPads[activeSignatureId].fromDataURL(dataUrl); } catch (e) {}
       }
-      toast('Signature saved');
+      toast('บันทึกลายเซ็นแล้ว');
     } else {
       clearSig(activeSignatureId);
     }
@@ -926,9 +908,8 @@ function closeFullSignature(save) {
   modal.classList.remove('active');
   modal.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('signature-open');
-  unlockSignatureOrientation();
-  if (document.fullscreenElement === modal) {
-    document.exitFullscreen().catch(() => {});
+  if (document.fullscreenElement) {
+    try { document.exitFullscreen(); } catch (e) {}
   }
 }
 
