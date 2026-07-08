@@ -490,6 +490,14 @@ async function getNextCounter(dateStr) {
 }
 
 // ==================== SUPABASE SYNC ====================
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function sbHasSaveConflict(id, baseCloudUpdatedAt) {
   if (!baseCloudUpdatedAt) return false;
   const { data, error } = await sb.from('reports')
@@ -1365,7 +1373,15 @@ async function saveDraft(returnHome = false) {
     data.id = id;
     data.status = 'draft';
     data._baseCloudUpdatedAt = editingCloudUpdatedAt;
-    if (await sbHasSaveConflict(data.id, data._baseCloudUpdatedAt)) {
+    const hasConflict = await withTimeout(
+      sbHasSaveConflict(data.id, data._baseCloudUpdatedAt),
+      8000,
+      'Conflict check'
+    ).catch(e => {
+      console.warn('Conflict check skipped:', e.message || e);
+      return false;
+    });
+    if (hasConflict) {
       toast('Cloud version changed. Reopen this report before saving.');
       return;
     }
@@ -1374,12 +1390,16 @@ async function saveDraft(returnHome = false) {
     data.photoThumbs = photoThumbUrls.slice();
     data.photoCaptions = photoCaptions.slice();
     await saveReport(data);          // local cache
-    const cloudSaved = await sbSaveReport(data);        // cloud sync
+    editingDraftId = id;
+    toast('Draft saved locally. Syncing cloud...');
+    const cloudSaved = await withTimeout(sbSaveReport(data), 15000, 'Cloud sync').catch(e => {
+      console.warn('Cloud sync timed out or failed:', e.message || e);
+      return false;
+    });
     if (cloudSaved === 'conflict') {
       toast('Cloud version changed. Reopen this report before saving.');
       return;
     }
-    editingDraftId = id;
     toast(cloudSaved ? 'Draft saved ☁️' : 'Saved locally ⚠️ Cloud sync failed');
     if (returnHome) await showHome();
   } catch (err) {
