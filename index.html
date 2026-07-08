@@ -1924,10 +1924,15 @@ async function loadReportList() {
    ,getAllReports().catch(() => [])
   ]);
 
-  // Cloud-first: cloud overrides local with same ID
+  // Cloud-first: cloud overrides local with same ID, but keep locally deleted reports hidden.
+  const deletedIds = getDeletedReportIds();
   const byId = new Map();
-  (localReports || []).forEach(r => byId.set(r.id, r));
-  (cloudReports || []).forEach(r => byId.set(r.id, { ...r, _fromCloud: true }));
+  (localReports || []).forEach(r => {
+    if (!deletedIds.has(r.id)) byId.set(r.id, r);
+  });
+  (cloudReports || []).forEach(r => {
+    if (!deletedIds.has(r.id)) byId.set(r.id, { ...r, _fromCloud: true });
+  });
   const reports = Array.from(byId.values());
 
   // Sync indicator
