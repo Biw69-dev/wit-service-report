@@ -1710,9 +1710,7 @@ async function generatePDF(data) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6);
   doc.setTextColor(0);
-  doc.text("CUSTOMER'S COPY (WHITE) / OFFICE COPY (YELLOW) / ENGINEER COPY (BLUE)", W / 2, y + 4, { align: 'center' });
-
-  // PHOTOS PAGE — form-style card layout, larger images
+  // PHOTOS PAGE - form-style card layout, larger images
   if (photoDataUrls.length > 0) {
     doc.addPage();
     doc.setFontSize(12);
