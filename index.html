@@ -407,45 +407,72 @@ function openDB() {
       if (!d.objectStoreNames.contains('reports')) d.createObjectStore('reports', { keyPath: 'id' });
       if (!d.objectStoreNames.contains('settings')) d.createObjectStore('settings', { keyPath: 'key' });
     };
-    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    req.onsuccess = (e) => {
+      db = e.target.result;
+      db.onversionchange = () => {
+        db.close();
+        db = null;
+      };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
   });
+}
+
+async function ensureDB() {
+  if (db) return db;
+  return openDB();
+}
+
+function withReportsStore(mode, action) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('reports', mode);
+    const store = tx.objectStore('reports');
+    const req = action(store);
+    if (req) {
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    } else {
+      tx.oncomplete = () => resolve();
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function retryWithReopenedDB(action) {
+  try {
+    await ensureDB();
+    return await action();
+  } catch (e) {
+    console.warn('IndexedDB operation failed, reopening database:', e.message || e);
+    try { db?.close(); } catch (_) {}
+    db = null;
+    await openDB();
+    return action();
+  }
 }
 
 function saveReport(data) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('reports', 'readwrite');
-    tx.objectStore('reports').put(data);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+  return retryWithReopenedDB(() => withReportsStore('readwrite', store => {
+    store.put(data);
+    return null;
+  }));
 }
 
 function getAllReports() {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('reports', 'readonly');
-    const req = tx.objectStore('reports').getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
-  });
+  return retryWithReopenedDB(() => withReportsStore('readonly', store => store.getAll()).then(result => result || []));
 }
 
 function getReport(id) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('reports', 'readonly');
-    const req = tx.objectStore('reports').get(id);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+  return retryWithReopenedDB(() => withReportsStore('readonly', store => store.get(id)));
 }
 
 function deleteReport(id) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('reports', 'readwrite');
-    tx.objectStore('reports').delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+  return retryWithReopenedDB(() => withReportsStore('readwrite', store => {
+    store.delete(id);
+    return null;
+  }));
 }
 
 async function getNextCounter(dateStr) {
