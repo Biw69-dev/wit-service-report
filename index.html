@@ -2011,7 +2011,7 @@ async function loadReportList() {
     const delBtn = document.createElement('button');
     delBtn.style.cssText = 'display:block;background:none;border:none;color:#f44336;font-size:0.7rem;cursor:pointer;margin-top:4px;';
     delBtn.textContent = 'Delete';
-    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteThis(r.id); });
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteThis(r.id, !!r._fromCloud); });
     if (!r._fromCloud) {
       // Local-only reports can't be deleted by everyone
       delBtn.title = 'Not yet uploaded to cloud';
@@ -2027,22 +2027,26 @@ async function openReport(id) {
   await loadDraft(id);
 }
 
-async function deleteThis(id) {
+async function deleteThis(id, isCloudReport = false) {
   if (!confirm('Delete this report?')) return;
   markReportDeleted(id);
   let cloudDeleted = true;
   try {
     await deleteReport(id);    // local cache
   } catch(e) { console.error('Local delete failed:', e); }
-  try {
-    await sbDeleteReportAssets(id);  // stored photos/PDF
-    await sbDeleteReport(id);        // cloud row
-  } catch(e) {
-    console.error('Cloud delete failed:', e);
-    cloudDeleted = false;
+  if (isCloudReport) {
+    try {
+      await sbDeleteReportAssets(id);  // stored photos/PDF
+      await sbDeleteReport(id);        // cloud row
+    } catch(e) {
+      console.error('Cloud delete failed:', e);
+      cloudDeleted = false;
+    }
   }
   await loadReportList();
-  toast(cloudDeleted ? 'Deleted from cloud ☁️' : 'Deleted locally ⚠️ (cloud sync failed)');
+  toast(isCloudReport
+    ? (cloudDeleted ? 'Deleted from cloud ☁️' : 'Deleted locally ⚠️ (cloud sync failed)')
+    : 'Deleted locally');
 }
 
 function toast(msg) {
