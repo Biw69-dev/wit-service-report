@@ -64,7 +64,7 @@ table.parts .parts-charge-cell input[type=radio] { width: auto; padding: 0; marg
 .sig-section { display: flex; gap: 12px; flex-wrap: wrap; }
 .sig-box { flex: 1; min-width: 180px; }
 .sig-box h4 { font-size: 0.72rem; color: #555; margin-bottom: 6px; text-transform: uppercase; }
-.sig-canvas { width: 100%; height: 90px; border: 1.5px dashed #ccc; border-radius: 6px; background: #fafafa; touch-action: none; cursor: crosshair; }
+.sig-canvas { width: 100%; height: 90px; border: 1.5px dashed #ccc; border-radius: 6px; background: #fafafa; touch-action: manipulation; cursor: default; }
 .sig-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
 .sig-box button { font-size: 0.7rem; padding: 5px 10px; background: #eee; border: none; border-radius: 4px; cursor: pointer; }
 .sig-full-btn { background: #e0f2f1 !important; color: #00695C; font-weight: 700; }
@@ -850,7 +850,7 @@ function initSigPads() {
     if (previousData) {
       try { sigPads[id].fromDataURL(previousData); } catch (e) {}
     }
-    sigPads[id].addEventListener('endStroke', () => syncSignatureFromPad(id));
+    if (sigPads[id].off) sigPads[id].off();
   });
 }
 
@@ -1786,9 +1786,6 @@ async function submitReport() {
   if (data.svcTypes.length === 0) return toast('⚠️ Please select Type of Service');
   if (!data.subject) return toast('⚠️ Please fill Subject');
   if (!data.countermeasure) return toast('⚠️ Please fill Countermeasure');
-  if (isSignatureEmpty('sigCustomer')) return toast('⚠️ Customer signature required');
-  if (isSignatureEmpty('sigService')) return toast('⚠️ Service signature required');
-  if (isSignatureEmpty('sigApprove')) return toast('⚠️ Approve signature required');
 
   await compressCurrentPhotos();
 
