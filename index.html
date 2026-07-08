@@ -32,6 +32,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   line-height: 20px;
   resize: none;
   overflow-y: auto;
+  overflow-wrap: anywhere;
   background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 19px, #e6eeee 20px);
   background-position: 0 8px;
 }
@@ -1410,6 +1411,23 @@ async function generatePDF(data) {
         useRunFont(run, 'normal');
         return sum + doc.getTextWidth(run);
       }, 0);
+    const pushLine = (lineText) => {
+      if (lines.length < maxLines) lines.push(lineText.trimEnd());
+    };
+    const appendWrappedText = (textValue, startLine = '') => {
+      let line = startLine;
+      Array.from(textValue).forEach(char => {
+        if (lines.length >= maxLines) return;
+        const test = line + char;
+        if (textWidth(test) > maxWidth && line.trim()) {
+          pushLine(line);
+          line = char.trimStart();
+        } else {
+          line = test;
+        }
+      });
+      return line;
+    };
 
     value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').forEach(paragraph => {
       if (lines.length >= maxLines) return;
@@ -1424,14 +1442,18 @@ async function generatePDF(data) {
         if (lines.length >= maxLines) return;
         const test = line + word;
         if (textWidth(test) > maxWidth && line.trim()) {
-          lines.push(line.trimEnd());
+          pushLine(line);
           if (lines.length >= maxLines) return;
-          line = word.trimStart();
+          line = textWidth(word.trimStart()) > maxWidth
+            ? appendWrappedText(word.trimStart())
+            : word.trimStart();
+        } else if (textWidth(word) > maxWidth) {
+          line = appendWrappedText(word, line);
         } else {
           line = test;
         }
       });
-      if (lines.length < maxLines && line.trim()) lines.push(line.trimEnd());
+      if (lines.length < maxLines && line.trim()) pushLine(line);
     });
     lines.slice(0, maxLines).forEach((lineText, i) => {
       if (lineText) pdfValue(lineText, x, y + i * lineHeight);
