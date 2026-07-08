@@ -2128,10 +2128,12 @@ async function deleteThis(id, isCloudReport = false) {
   let cloudDeleted = true;
   if (shouldDeleteCloud) {
     try {
-      await sbDeleteReportAssets(id);  // stored photos/PDF
-      await sbDeleteReport(id);        // cloud row
+      await sbDeleteReport(id);        // shared cloud row first
       await deleteReport(id);          // local cache after shared delete succeeds
       markReportDeleted(id);
+      sbDeleteReportAssets(id).catch(e => {
+        console.warn('Cloud assets cleanup failed after report delete:', e.message || e);
+      });
     } catch(e) {
       console.error('Cloud delete failed:', e);
       cloudDeleted = false;
