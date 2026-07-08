@@ -376,6 +376,11 @@ let activeSignatureId = null;
 let fullSigPad = null;
 let fullSignatureCleared = false;
 const SIGNATURE_IDS = ['sigCustomer', 'sigService', 'sigApprove'];
+const SIGNATURE_DATE_IDS = {
+  sigCustomer: 'sigCustDate',
+  sigService: 'sigSvcDate',
+  sigApprove: 'sigApproveDate'
+};
 const SIG_PEN_COLOR = 'rgb(20, 60, 180)';   // blue ballpoint pen
 let editingDraftId = null;
 let photoDataUrls = [];
@@ -702,9 +707,9 @@ function resetForm() {
   document.querySelectorAll('input[name=feeCharge]').forEach(r => r.checked = false);
   document.getElementById('numPersonnel').value = '1';
   document.getElementById('svcHours').value = '';
-  document.getElementById('sigCustDate').value = new Date().toISOString().split('T')[0];
-  document.getElementById('sigSvcDate').value = new Date().toISOString().split('T')[0];
-  document.getElementById('sigApproveDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('sigCustDate').value = '';
+  document.getElementById('sigSvcDate').value = '';
+  document.getElementById('sigApproveDate').value = '';
   document.getElementById('partsTbody').innerHTML = '';
   document.querySelectorAll('#photoArea img:not(.add-photo)').forEach(el => el.parentElement?.remove());
   photoDataUrls = [];
@@ -796,9 +801,9 @@ function fillForm(data) {
   }
   document.getElementById('numPersonnel').value = data.numPersonnel || '1';
   document.getElementById('svcHours').value = data.svcHours || '';
-  document.getElementById('sigCustDate').value = data.sigCustDate || new Date().toISOString().split('T')[0];
-  document.getElementById('sigSvcDate').value = data.sigSvcDate || new Date().toISOString().split('T')[0];
-  document.getElementById('sigApproveDate').value = data.sigApproveDate || new Date().toISOString().split('T')[0];
+  document.getElementById('sigCustDate').value = data.sigCustDate || '';
+  document.getElementById('sigSvcDate').value = data.sigSvcDate || '';
+  document.getElementById('sigApproveDate').value = data.sigApproveDate || '';
   document.getElementById('partsTbody').innerHTML = '';
   (data.parts || []).forEach(p => addPartRow(p));
   if (!data.parts || data.parts.length === 0) addPartRow();
@@ -862,6 +867,11 @@ function getSignatureTitle(id) {
   }[id] || 'Signature';
 }
 
+function setSignatureDateIfEmpty(id) {
+  const input = document.getElementById(SIGNATURE_DATE_IDS[id]);
+  if (input && !input.value) input.value = new Date().toISOString().split('T')[0];
+}
+
 function initFullSigPad(dataUrl) {
   const canvas = document.getElementById('sigFullCanvas');
   if (!canvas) return;
@@ -917,6 +927,7 @@ function closeFullSignature(save) {
         sigPads[activeSignatureId].clear();
         try { sigPads[activeSignatureId].fromDataURL(dataUrl); } catch (e) {}
       }
+      setSignatureDateIfEmpty(activeSignatureId);
       toast('Signature saved');
     } else {
       clearSig(activeSignatureId);
@@ -1696,7 +1707,7 @@ async function generatePDF(data) {
     if (sigData && sigData.startsWith('data:image')) {
       try { doc.addImage(sigData, 'PNG', sx + 8, y + sigHeaderH + 2, sigW - 16, 9); } catch(e) {}
     }
-    const sigDate = i === 0 ? data.sigCustDate : (i === 1 ? data.sigSvcDate : data.sigApproveDate);
+    const sigDate = sigData ? (i === 0 ? data.sigCustDate : (i === 1 ? data.sigSvcDate : data.sigApproveDate)) : '';
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
     doc.text('DATE:', sx + 1, y + sigHeaderH + sigH - 1.8);
@@ -2106,9 +2117,6 @@ async function init() {
   await openDB();
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('svcDate').value = today;
-  document.getElementById('sigCustDate').value = today;
-  document.getElementById('sigSvcDate').value = today;
-  document.getElementById('sigApproveDate').value = today;
   // Check auth, if logged in → load reports
   await checkAuth();
 }
