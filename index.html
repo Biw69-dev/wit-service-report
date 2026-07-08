@@ -19,10 +19,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .card h3 { font-size: 0.85rem; color: #00897B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; border-bottom: 2px solid #00897B; padding-bottom: 6px; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; }
 .field { margin-bottom: 10px; flex: 1; min-width: 140px; }
-.field label { display: block; font-size: 0.72rem; font-weight: 600; color: #555; margin-bottom: 3px; text-transform: uppercase; }
+.field label { display: block; font-size: 0.78rem; font-weight: 600; color: #555; margin-bottom: 3px; text-transform: uppercase; }
 .field input, .field textarea, .field select {
   width: 100%; padding: 8px 10px; border: 1.5px solid #e0e0e0; border-radius: 6px;
-  font-size: 0.9rem; font-family: inherit; transition: border-color 0.2s;
+  font-size: 1rem; font-family: inherit; transition: border-color 0.2s;
 }
 .field input:focus, .field textarea:focus { border-color: #00897B; outline: none; }
 .field textarea { resize: vertical; min-height: 60px; }
@@ -1395,7 +1395,7 @@ async function generatePDF(data) {
     });
   }
 
-  function pdfValueLines(text, x, y, maxWidth) {
+  function pdfValueLines(text, x, y, maxWidth, lineHeight = 4) {
     const value = String(text || '');
     if (!value) return;
     const lines = [];
@@ -1424,7 +1424,7 @@ async function generatePDF(data) {
       if (line.trim()) lines.push(line.trimEnd());
     });
     lines.forEach((lineText, i) => {
-      if (lineText) pdfValue(lineText, x, y + i * 4);
+      if (lineText) pdfValue(lineText, x, y + i * lineHeight);
     });
   }
 
@@ -1463,8 +1463,8 @@ async function generatePDF(data) {
 
   function sectionText(text, x, y, width, maxChars = 450) {
     if (!text) return;
-    doc.setFontSize(6.2);
-    pdfValueLines(String(text).substring(0, maxChars), x, y, width);
+    doc.setFontSize(6.8);
+    pdfValueLines(String(text).substring(0, maxChars), x, y, width, 4.7);
   }
 
   const L = 3;
