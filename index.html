@@ -1362,12 +1362,30 @@ async function resolveReportPhotos(data) {
 // ==================== SAVE / LOAD DRAFT ====================
 async function saveDraft(returnHome = false) {
   const btn = document.getElementById('saveDraftBtn');
+  let watchdog = null;
+  const restoreButton = () => {
+    if (watchdog) {
+      clearTimeout(watchdog);
+      watchdog = null;
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '💾 Save Draft';
+    }
+  };
   if (btn) {
     btn.disabled = true;
     btn.textContent = 'Saving...';
+    watchdog = setTimeout(() => {
+      console.warn('Save draft watchdog released the button');
+      restoreButton();
+      toast('Save is taking too long. Try again or reload.');
+    }, 20000);
   }
   try {
-    await compressCurrentPhotos();
+    await withTimeout(compressCurrentPhotos(), 10000, 'Photo compression').catch(e => {
+      console.warn('Photo compression skipped:', e.message || e);
+    });
     const data = getFormData();
     const id = editingDraftId || 'draft_' + Date.now();
     data.id = id;
@@ -1389,28 +1407,30 @@ async function saveDraft(returnHome = false) {
     data.photos = photoDataUrls.slice();
     data.photoThumbs = photoThumbUrls.slice();
     data.photoCaptions = photoCaptions.slice();
-    await saveReport(data);          // local cache
+    await withTimeout(saveReport(data), 5000, 'Local draft save');
     editingDraftId = id;
     toast('Draft saved locally. Syncing cloud...');
-    const cloudSaved = await withTimeout(sbSaveReport(data), 15000, 'Cloud sync').catch(e => {
-      console.warn('Cloud sync timed out or failed:', e.message || e);
-      return false;
-    });
-    if (cloudSaved === 'conflict') {
-      toast('Cloud version changed. Reopen this report before saving.');
-      return;
-    }
-    toast(cloudSaved ? 'Draft saved ☁️' : 'Saved locally ⚠️ Cloud sync failed');
+    restoreButton();
+    syncDraftToCloudInBackground(data);
     if (returnHome) await showHome();
   } catch (err) {
     console.error('Save draft error:', err);
     toast('Save failed ❌');
   } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = '💾 Save Draft';
-    }
+    restoreButton();
   }
+}
+
+async function syncDraftToCloudInBackground(data) {
+  const cloudSaved = await withTimeout(sbSaveReport(data), 15000, 'Cloud sync').catch(e => {
+    console.warn('Cloud sync timed out or failed:', e.message || e);
+    return false;
+  });
+  if (cloudSaved === 'conflict') {
+    toast('Cloud version changed. Reopen this report before saving.');
+    return;
+  }
+  toast(cloudSaved ? 'Draft synced ☁️' : 'Saved locally ⚠️ Cloud sync failed');
 }
 
 async function loadDraft(id) {
