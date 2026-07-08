@@ -26,7 +26,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 }
 .field input:focus, .field textarea:focus { border-color: #00897B; outline: none; }
 .field textarea { resize: vertical; min-height: 60px; }
-#countermeasure { min-height: 150px; }
+.pdf-textarea {
+  font-family: Arial, 'Noto Sans Thai', sans-serif;
+  font-size: 0.95rem;
+  line-height: 20px;
+  resize: none;
+  overflow-y: auto;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 19px, #e6eeee 20px);
+  background-position: 0 8px;
+}
+#subject { min-height: 58px; }
+#countermeasure { min-height: 478px; }
+#remark { min-height: 118px; }
 .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
 .checkbox-group label { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; font-weight: 400; text-transform: none; cursor: pointer; padding: 6px 10px; border: 1.5px solid #e0e0e0; border-radius: 20px; user-select: none; }
 .checkbox-group label.checked { background: #e0f2f1; border-color: #00897B; color: #00695C; }
@@ -205,9 +216,9 @@ body.signature-open { overflow: hidden; touch-action: none; }
 
   <div class="card">
     <h3>Service Details</h3>
-    <div class="field"><label>Subject *</label><textarea id="subject" rows="2"></textarea></div>
-    <div class="field"><label>Countermeasure / Action *</label><textarea id="countermeasure" rows="5"></textarea></div>
-    <div class="field"><label>Remark</label><textarea id="remark" rows="2"></textarea></div>
+    <div class="field"><label>Subject *</label><textarea id="subject" class="pdf-textarea" rows="2"></textarea></div>
+    <div class="field"><label>Countermeasure / Action *</label><textarea id="countermeasure" class="pdf-textarea" rows="23"></textarea></div>
+    <div class="field"><label>Remark</label><textarea id="remark" class="pdf-textarea" rows="5"></textarea></div>
   </div>
 
   <div class="card">
@@ -288,10 +299,6 @@ body.signature-open { overflow: hidden; touch-action: none; }
       <button onclick="downloadLastPDF()" style="flex:1; padding:10px; background:#2e7d32; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">⬇ Download PDF Again</button>
       <button onclick="openSharePoint()" style="flex:1; padding:10px; background:#0078d4; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">📁 Open SharePoint</button>
     </div>
-    <p style="font-size:0.7rem; color:#666; margin-top:8px;">
-      💡 PDF saved to your Downloads folder.<br>
-      When back at office, upload to SharePoint or tap "Open SharePoint" above.
-    </p>
   </div>
 
   <div style="height:30px;"></div>
@@ -1395,7 +1402,7 @@ async function generatePDF(data) {
     });
   }
 
-  function pdfValueLines(text, x, y, maxWidth, lineHeight = 4) {
+  function pdfValueLines(text, x, y, maxWidth, lineHeight = 4, maxLines = Infinity) {
     const value = String(text || '');
     if (!value) return;
     const lines = [];
@@ -1405,25 +1412,28 @@ async function generatePDF(data) {
       }, 0);
 
     value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').forEach(paragraph => {
+      if (lines.length >= maxLines) return;
       if (!paragraph.trim()) {
-        lines.push('');
+        if (lines.length < maxLines) lines.push('');
         return;
       }
 
       const words = paragraph.split(/([^\S\n]+)/);
       let line = '';
       words.forEach(word => {
+        if (lines.length >= maxLines) return;
         const test = line + word;
         if (textWidth(test) > maxWidth && line.trim()) {
           lines.push(line.trimEnd());
+          if (lines.length >= maxLines) return;
           line = word.trimStart();
         } else {
           line = test;
         }
       });
-      if (line.trim()) lines.push(line.trimEnd());
+      if (lines.length < maxLines && line.trim()) lines.push(line.trimEnd());
     });
-    lines.forEach((lineText, i) => {
+    lines.slice(0, maxLines).forEach((lineText, i) => {
       if (lineText) pdfValue(lineText, x, y + i * lineHeight);
     });
   }
@@ -1461,10 +1471,10 @@ async function generatePDF(data) {
     }
   }
 
-  function sectionText(text, x, y, width, maxChars = 450) {
+  function sectionText(text, x, y, width, maxChars = 450, maxLines = Infinity) {
     if (!text) return;
     doc.setFontSize(6.8);
-    pdfValueLines(String(text).substring(0, maxChars), x, y, width, 4.7);
+    pdfValueLines(String(text).substring(0, maxChars), x, y, width, 4.7, maxLines);
   }
 
   const L = 3;
@@ -1573,21 +1583,21 @@ async function generatePDF(data) {
   const subjectH = 18;
   doc.rect(L, y, TW, subjectH);
   label('SUBJECT :', L + 1, y + 5.3);
-  sectionText(data.subject, L + 2, y + 10.5, TW - 5, 120);
+  sectionText(data.subject, L + 2, y + 10.5, TW - 5, 120, 2);
 
   // Countermeasure large area
   y += subjectH;
   const counterH = 122;
   doc.rect(L, y, TW, counterH);
   label('COUNTERMEASURE / ACTION :', L + 1, y + 5.3);
-  sectionText(data.countermeasure, L + 2, y + 10.5, TW - 5, 900);
+  sectionText(data.countermeasure, L + 2, y + 10.5, TW - 5, 900, 23);
 
   // Remark
   y += counterH;
   const remarkH = 37;
   doc.rect(L, y, TW, remarkH);
   label('REMARK :', L + 1, y + 5.3);
-  sectionText(data.remark, L + 2, y + 10.5, TW - 5, 220);
+  sectionText(data.remark, L + 2, y + 10.5, TW - 5, 220, 5);
 
   // Parts table, 3 rows like original
   y += remarkH;
