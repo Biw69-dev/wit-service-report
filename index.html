@@ -580,6 +580,15 @@ async function sbGetReport(id) {
   return data?.data ? { ...data.data, _cloudUpdatedAt: data.updated_at } : null;
 }
 
+async function sbReportExists(id) {
+  const { data, error } = await sb.from('reports').select('id').eq('id', id).maybeSingle();
+  if (error) {
+    console.error('Supabase exists check error:', error.message);
+    return false;
+  }
+  return !!data;
+}
+
 async function sbDeleteReport(id) {
   const { error, count } = await sb.from('reports').delete({ count: 'exact' }).eq('id', id);
   if (error) {
@@ -2112,8 +2121,12 @@ async function openReport(id) {
 
 async function deleteThis(id, isCloudReport = false) {
   if (!confirm('Delete this report?')) return;
+  let shouldDeleteCloud = isCloudReport;
+  if (!shouldDeleteCloud) {
+    shouldDeleteCloud = await sbReportExists(id).catch(() => false);
+  }
   let cloudDeleted = true;
-  if (isCloudReport) {
+  if (shouldDeleteCloud) {
     try {
       await sbDeleteReportAssets(id);  // stored photos/PDF
       await sbDeleteReport(id);        // cloud row
@@ -2130,9 +2143,9 @@ async function deleteThis(id, isCloudReport = false) {
     } catch(e) { console.error('Local delete failed:', e); }
   }
   await loadReportList();
-  toast(isCloudReport
-    ? (cloudDeleted ? 'Deleted from cloud ☁️' : 'Deleted locally ⚠️ (cloud sync failed)')
-    : 'Deleted locally');
+  toast(shouldDeleteCloud
+    ? (cloudDeleted ? 'Deleted from cloud ☁️' : 'Cloud delete failed ⚠️ Report was not deleted')
+    : 'Deleted local draft');
 }
 
 function toast(msg) {
