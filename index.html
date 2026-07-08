@@ -625,15 +625,26 @@ async function sbReportExists(id) {
   return !!data;
 }
 
+async function sbForceDeleteReport(id) {
+  const { data, error } = await sb.rpc('delete_report_force', { report_id: id });
+  if (error) {
+    console.error('Supabase force delete error:', error.message);
+    return false;
+  }
+  return !!data;
+}
+
 async function sbDeleteReport(id) {
   const { error, count } = await sb.from('reports').delete({ count: 'exact' }).eq('id', id);
   if (error) {
     console.error('Supabase delete error:', error.message);
+    if (await sbForceDeleteReport(id)) return;
     throw new Error('Supabase: ' + error.message);
   }
   const stillExists = await sbReportExists(id);
   if (stillExists) {
     console.warn('Supabase delete did not remove report:', id, 'count:', count);
+    if (await sbForceDeleteReport(id)) return;
     throw new Error('Cloud row still exists');
   }
   if (count === 0) console.warn('Supabase delete returned 0 rows because report is already gone:', id);

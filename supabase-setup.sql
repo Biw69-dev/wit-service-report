@@ -100,6 +100,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 9.1 Force delete fallback สำหรับกรณี client delete ติด RLS/policy แต่ผู้ใช้ login แล้ว
+CREATE OR REPLACE FUNCTION delete_report_force(report_id TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+  deleted_count INTEGER;
+BEGIN
+  DELETE FROM public.reports WHERE id = report_id;
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  RETURN deleted_count > 0 OR NOT EXISTS (
+    SELECT 1 FROM public.reports WHERE id = report_id
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+GRANT EXECUTE ON FUNCTION delete_report_force(TEXT) TO authenticated;
+
 -- 10. เปิด Realtime ให้ทุกเครื่องเห็นรายการ report เปลี่ยนพร้อมกัน
 DO $$
 BEGIN
