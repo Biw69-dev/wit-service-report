@@ -389,6 +389,9 @@ let photoCaptions = [];
 let lastGeneratedDoc = null;
 let lastGeneratedPdfBlob = null;
 let lastReportNo = '';
+let editingCloudUpdatedAt = null;
+let reportsRealtimeChannel = null;
+let reportListRefreshTimer = null;
 const STORAGE_BUCKET = 'wit-service-files';
 const PHOTO_MAX_DIMENSION = 1280;
 const PHOTO_JPEG_QUALITY = 0.72;
@@ -459,7 +462,25 @@ async function getNextCounter(dateStr) {
 }
 
 // ==================== SUPABASE SYNC ====================
+async function sbHasSaveConflict(id, baseCloudUpdatedAt) {
+  if (!baseCloudUpdatedAt) return false;
+  const { data, error } = await sb.from('reports')
+    .select('updated_at')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) {
+    console.error('Supabase conflict check error:', error.message);
+    return false;
+  }
+  return !data || data.updated_at !== baseCloudUpdatedAt;
+}
+
 async function sbSaveReport(data) {
+  const baseCloudUpdatedAt = data._baseCloudUpdatedAt || null;
+  if (await sbHasSaveConflict(data.id, baseCloudUpdatedAt)) {
+    console.warn('Supabase save conflict for id:', data.id);
+    return 'conflict';
+  }
   let cloudData;
   try {
     cloudData = await prepareReportForCloud(data);
@@ -467,6 +488,8 @@ async function sbSaveReport(data) {
     console.error('Storage upload error:', e.message || e);
     return false;
   }
+  delete cloudData._cloudUpdatedAt;
+  delete cloudData._baseCloudUpdatedAt;
   const row = {
     id: data.id,
     report_no: data.reportNo || null,
@@ -475,11 +498,32 @@ async function sbSaveReport(data) {
     created_by: currentUser?.email || null,
     updated_at: new Date().toISOString()
   };
-  const { error } = await sb.from('reports').upsert(row);
+  let error;
+  let savedRow = null;
+  if (baseCloudUpdatedAt) {
+    const result = await sb.from('reports')
+      .update(row)
+      .eq('id', data.id)
+      .eq('updated_at', baseCloudUpdatedAt)
+      .select('updated_at')
+      .maybeSingle();
+    error = result.error;
+    savedRow = result.data;
+    if (!error && !savedRow) {
+      console.warn('Supabase save conflict for id:', data.id);
+      return 'conflict';
+    }
+  } else {
+    const result = await sb.from('reports').upsert(row).select('updated_at').single();
+    error = result.error;
+    savedRow = result.data;
+  }
   if (error) {
     console.error('Supabase save error:', error.message);
     return false;
   }
+  editingCloudUpdatedAt = savedRow?.updated_at || row.updated_at;
+  unmarkReportDeleted(data.id);
   return true;
 }
 
@@ -512,6 +556,12 @@ function markReportDeleted(id) {
   localStorage.setItem('wit_deleted_report_ids', JSON.stringify(Array.from(ids)));
 }
 
+function unmarkReportDeleted(id) {
+  const ids = getDeletedReportIds();
+  if (!ids.delete(id)) return;
+  localStorage.setItem('wit_deleted_report_ids', JSON.stringify(Array.from(ids)));
+}
+
 function mergeReports(cloudReports, localReports) {
   const deletedIds = getDeletedReportIds();
   const byId = new Map();
@@ -519,15 +569,15 @@ function mergeReports(cloudReports, localReports) {
     if (!deletedIds.has(r.id)) byId.set(r.id, r);
   });
   (cloudReports || []).forEach(r => {
-    if (!deletedIds.has(r.id)) byId.set(r.id, r);
+    byId.set(r.id, r);
   });
   return Array.from(byId.values());
 }
 
 async function sbGetReport(id) {
-  const { data, error } = await sb.from('reports').select('data').eq('id', id).single();
+  const { data, error } = await sb.from('reports').select('data, updated_at').eq('id', id).single();
   if (error) { console.error('Supabase get error:', error.message); return null; }
-  return data?.data || null;
+  return data?.data ? { ...data.data, _cloudUpdatedAt: data.updated_at } : null;
 }
 
 async function sbDeleteReport(id) {
@@ -609,15 +659,20 @@ async function downloadStorageDataUrl(path) {
   return blobToDataUrl(data, `Storage image read failed: ${path}`);
 }
 
-async function uploadReportPhotos(reportId, fullPhotos, thumbPhotos) {
+function reportRevisionKey(data) {
+  return safeStorageName(data.updatedAt || data.reportNo || Date.now());
+}
+
+async function uploadReportPhotos(reportId, fullPhotos, thumbPhotos, revisionKey) {
   const refs = [];
+  const revision = safeStorageName(revisionKey || Date.now());
   for (let i = 0; i < (fullPhotos || []).length; i++) {
     const full = fullPhotos[i];
     const thumb = thumbPhotos?.[i];
     if (isStoragePhoto(full)) { refs.push(full); continue; }
     if (typeof full !== 'string' || !full.startsWith('data:image')) continue;
 
-    const base = `reports/${safeStorageName(reportId)}/photos/photo-${String(i + 1).padStart(2, '0')}`;
+    const base = `reports/${safeStorageName(reportId)}/photos/${revision}-photo-${String(i + 1).padStart(2, '0')}`;
     const fullRef = await uploadDataUrlToStorage(`${base}.jpg`, full, 'image/jpeg');
     const thumbData = (typeof thumb === 'string' && thumb.startsWith('data:image')) ? thumb : await createThumbnailDataUrl(full);
     const thumbRef = await uploadDataUrlToStorage(`${base}-thumb.jpg`, thumbData, 'image/jpeg');
@@ -634,7 +689,7 @@ async function uploadReportPhotos(reportId, fullPhotos, thumbPhotos) {
 
 async function prepareReportForCloud(data) {
   const cloudData = { ...data };
-  cloudData.photos = await uploadReportPhotos(data.id, data.photos || [], data.photoThumbs || []);
+  cloudData.photos = await uploadReportPhotos(data.id, data.photos || [], data.photoThumbs || [], reportRevisionKey(data));
   delete cloudData.photoThumbs;
   cloudData.photoStorage = { bucket: STORAGE_BUCKET, count: cloudData.photos.length };
   return cloudData;
@@ -644,7 +699,8 @@ async function uploadFinalPdfToStorage(data, pdfBlob) {
   if (!pdfBlob) return null;
   const reportId = safeStorageName(data.id);
   const reportNo = safeStorageName(data.reportNo || data.id || 'report');
-  const path = `reports/${reportId}/pdf/${reportNo}.pdf`;
+  const revision = reportRevisionKey(data);
+  const path = `reports/${reportId}/pdf/${revision}-${reportNo}.pdf`;
   return uploadBlobToStorage(path, pdfBlob, 'application/pdf');
 }
 
@@ -675,6 +731,7 @@ async function showHome() {
   document.getElementById('cloudSyncBadge').textContent = '☁️ Connecting...';
   document.getElementById('cloudSyncBadge').style.color = '';
   editingDraftId = null;
+  editingCloudUpdatedAt = null;
   await loadReportList();
 }
 
@@ -721,6 +778,7 @@ function resetForm() {
   });
   addPartRow();
   editingDraftId = null;
+  editingCloudUpdatedAt = null;
   lastGeneratedDoc = null;
   lastGeneratedPdfBlob = null;
   lastReportNo = '';
@@ -1269,12 +1327,21 @@ async function saveDraft(returnHome = false) {
     const id = editingDraftId || 'draft_' + Date.now();
     data.id = id;
     data.status = 'draft';
+    data._baseCloudUpdatedAt = editingCloudUpdatedAt;
+    if (await sbHasSaveConflict(data.id, data._baseCloudUpdatedAt)) {
+      toast('Cloud version changed. Reopen this report before saving.');
+      return;
+    }
     data.updatedAt = new Date().toISOString();
     data.photos = photoDataUrls.slice();
     data.photoThumbs = photoThumbUrls.slice();
     data.photoCaptions = photoCaptions.slice();
     await saveReport(data);          // local cache
     const cloudSaved = await sbSaveReport(data);        // cloud sync
+    if (cloudSaved === 'conflict') {
+      toast('Cloud version changed. Reopen this report before saving.');
+      return;
+    }
     editingDraftId = id;
     toast(cloudSaved ? 'Draft saved ☁️' : 'Saved locally ⚠️ Cloud sync failed');
     if (returnHome) await showHome();
@@ -1294,6 +1361,7 @@ async function loadDraft(id) {
   if (!data) data = await getReport(id); // fallback to local
   if (!data) return;
   editingDraftId = id;
+  editingCloudUpdatedAt = data._cloudUpdatedAt || null;
   document.getElementById('homeScreen').classList.remove('screen-active');
   document.getElementById('formScreen').classList.add('screen-active');
   document.getElementById('headerTitle').textContent = 'Edit Report';
@@ -1806,13 +1874,19 @@ async function submitReport() {
 
   await compressCurrentPhotos();
 
+  const id = editingDraftId || 'sr_' + Date.now();
+  data.id = id;
+  data._baseCloudUpdatedAt = editingCloudUpdatedAt;
+  if (await sbHasSaveConflict(data.id, data._baseCloudUpdatedAt)) {
+    toast('Cloud version changed. Reopen this report before submitting.');
+    return;
+  }
+
   const dateStr = data.svcDate || new Date().toISOString().split('T')[0];
   const counter = await sbGetNextCounter(dateStr);
   data.reportNo = `WIT-SR-${dateStr.replace(/-/g, '')}-${String(counter).padStart(3, '0')}`;
   document.getElementById('reportNo').value = data.reportNo;
 
-  const id = editingDraftId || 'sr_' + Date.now();
-  data.id = id;
   data.status = 'completed';
   data.updatedAt = new Date().toISOString();
   data.photos = photoDataUrls.slice();
@@ -1847,6 +1921,10 @@ async function submitReport() {
     }
     await saveReport(data);          // keep PDF metadata/failure flag locally
     const cloudSaved = await sbSaveReport(data);        // cloud sync: uploads photos + stores PDF path
+    if (cloudSaved === 'conflict') {
+      toast('Cloud version changed. Reopen this report before submitting.');
+      return;
+    }
 
     // Show post-submit card
     document.getElementById('postSubmitMsg').textContent = `Report ${data.reportNo} was generated and downloaded.`;
@@ -1924,14 +2002,14 @@ async function loadReportList() {
    ,getAllReports().catch(() => [])
   ]);
 
-  // Cloud-first: cloud overrides local with same ID, but keep locally deleted reports hidden.
+  // Cloud is the shared source of truth. Local tombstones only hide local-only drafts.
   const deletedIds = getDeletedReportIds();
   const byId = new Map();
   (localReports || []).forEach(r => {
     if (!deletedIds.has(r.id)) byId.set(r.id, r);
   });
   (cloudReports || []).forEach(r => {
-    if (!deletedIds.has(r.id)) byId.set(r.id, { ...r, _fromCloud: true });
+    byId.set(r.id, { ...r, _fromCloud: true });
   });
   const reports = Array.from(byId.values());
 
@@ -2034,19 +2112,22 @@ async function openReport(id) {
 
 async function deleteThis(id, isCloudReport = false) {
   if (!confirm('Delete this report?')) return;
-  markReportDeleted(id);
   let cloudDeleted = true;
-  try {
-    await deleteReport(id);    // local cache
-  } catch(e) { console.error('Local delete failed:', e); }
   if (isCloudReport) {
     try {
       await sbDeleteReportAssets(id);  // stored photos/PDF
       await sbDeleteReport(id);        // cloud row
+      await deleteReport(id);          // local cache after shared delete succeeds
+      markReportDeleted(id);
     } catch(e) {
       console.error('Cloud delete failed:', e);
       cloudDeleted = false;
     }
+  } else {
+    try {
+      await deleteReport(id);    // local cache
+      markReportDeleted(id);
+    } catch(e) { console.error('Local delete failed:', e); }
   }
   await loadReportList();
   toast(isCloudReport
@@ -2064,6 +2145,35 @@ function toast(msg) {
 document.getElementById('svcTypeGroup').addEventListener('change', (e) => {
   if (e.target.type === 'checkbox') e.target.parentElement.classList.toggle('checked', e.target.checked);
 });
+
+function isHomeVisible() {
+  return document.getElementById('homeScreen').classList.contains('screen-active');
+}
+
+function scheduleReportListRefresh() {
+  if (!isHomeVisible()) return;
+  clearTimeout(reportListRefreshTimer);
+  reportListRefreshTimer = setTimeout(() => {
+    loadReportList().catch(e => console.error('Realtime refresh failed:', e));
+  }, 350);
+}
+
+function setupRealtimeReports() {
+  if (!sb || reportsRealtimeChannel) return;
+  reportsRealtimeChannel = sb.channel('reports-shared-list')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, scheduleReportListRefresh)
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') console.warn('Realtime reports channel error');
+    });
+}
+
+function teardownRealtimeReports() {
+  clearTimeout(reportListRefreshTimer);
+  reportListRefreshTimer = null;
+  if (!sb || !reportsRealtimeChannel) return;
+  sb.removeChannel(reportsRealtimeChannel).catch(e => console.error('Realtime teardown failed:', e));
+  reportsRealtimeChannel = null;
+}
 
 // ==================== AUTH ====================
 async function checkAuth() {
@@ -2083,6 +2193,7 @@ async function checkAuth() {
 }
 
 function showLogin() {
+  teardownRealtimeReports();
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('homeScreen').classList.remove('screen-active');
   document.getElementById('formScreen').classList.remove('screen-active');
@@ -2094,6 +2205,7 @@ function showApp() {
   const badge = document.getElementById('userBadge');
   badge.textContent = currentUser.email.split('@')[0];
   badge.style.display = 'inline-block';
+  setupRealtimeReports();
   showHome();
 }
 
@@ -2122,6 +2234,7 @@ async function handleLogin() {
 
 async function handleLogout() {
   if (sb) { try { await sb.auth.signOut(); } catch(e) { console.error('Logout error:', e); } }
+  teardownRealtimeReports();
   currentUser = null;
   showLogin();
   toast('Logged out');

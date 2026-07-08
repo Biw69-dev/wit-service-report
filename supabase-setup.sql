@@ -33,6 +33,20 @@ CREATE POLICY "delete_all" ON reports FOR DELETE TO authenticated USING (true);
 CREATE INDEX IF NOT EXISTS reports_updated_at_idx ON reports (updated_at DESC);
 CREATE INDEX IF NOT EXISTS reports_report_no_idx   ON reports (report_no);
 
+-- 5.1 อัปเดต updated_at ทุกครั้งที่มีการแก้ report จากทุก client/API
+CREATE OR REPLACE FUNCTION set_reports_updated_at() RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS reports_set_updated_at ON reports;
+CREATE TRIGGER reports_set_updated_at
+BEFORE UPDATE ON reports
+FOR EACH ROW
+EXECUTE FUNCTION set_reports_updated_at();
+
 -- 6. สร้างตาราง settings (สำหรับ counter เลข report กันซ้ำ)
 CREATE TABLE IF NOT EXISTS settings (
   key        TEXT PRIMARY KEY,
@@ -85,3 +99,17 @@ BEGIN
     RETURNING value INTO new_val;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 10. เปิด Realtime ให้ทุกเครื่องเห็นรายการ report เปลี่ยนพร้อมกัน
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'reports'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE reports;
+  END IF;
+END $$;
