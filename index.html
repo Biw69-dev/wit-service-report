@@ -1398,24 +1398,34 @@ async function generatePDF(data) {
   function pdfValueLines(text, x, y, maxWidth) {
     const value = String(text || '');
     if (!value) return;
-    const words = value.split(/(\s+)/);
     const lines = [];
-    let line = '';
-    words.forEach(word => {
-      const test = line + word;
-      const width = textRuns(test).reduce((sum, run) => {
+    const textWidth = (textValue) => textRuns(textValue).reduce((sum, run) => {
         useRunFont(run, 'normal');
         return sum + doc.getTextWidth(run);
       }, 0);
-      if (width > maxWidth && line.trim()) {
-        lines.push(line.trimEnd());
-        line = word.trimStart();
-      } else {
-        line = test;
+
+    value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').forEach(paragraph => {
+      if (!paragraph.trim()) {
+        lines.push('');
+        return;
       }
+
+      const words = paragraph.split(/([^\S\n]+)/);
+      let line = '';
+      words.forEach(word => {
+        const test = line + word;
+        if (textWidth(test) > maxWidth && line.trim()) {
+          lines.push(line.trimEnd());
+          line = word.trimStart();
+        } else {
+          line = test;
+        }
+      });
+      if (line.trim()) lines.push(line.trimEnd());
     });
-    if (line.trim()) lines.push(line.trimEnd());
-    lines.forEach((lineText, i) => pdfValue(lineText, x, y + i * 4));
+    lines.forEach((lineText, i) => {
+      if (lineText) pdfValue(lineText, x, y + i * 4);
+    });
   }
 
   // Paper-form layout matched to original scanned service report
