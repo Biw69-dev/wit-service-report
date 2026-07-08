@@ -1407,19 +1407,31 @@ async function generatePDF(data) {
     const value = String(text || '');
     if (!value) return;
     const lines = [];
-    const textWidth = (textValue) => textRuns(textValue).reduce((sum, run) => {
-        useRunFont(run, 'normal');
-        return sum + doc.getTextWidth(run);
-      }, 0);
+    const safeWidth = Math.max(1, maxWidth - 2);
+    const charWidth = (char) => {
+      useRunFont(char, 'normal');
+      return doc.getTextWidth(char);
+    };
+    const textWidth = (textValue) => Array.from(String(textValue || '')).reduce((sum, char) => sum + charWidth(char), 0);
     const pushLine = (lineText) => {
       if (lines.length < maxLines) lines.push(lineText.trimEnd());
+    };
+    const drawLine = (lineText, lineY) => {
+      let cursorX = x;
+      Array.from(lineText).forEach(char => {
+        const width = charWidth(char);
+        if (cursorX + width > x + safeWidth) return;
+        useRunFont(char, 'normal');
+        doc.text(char, cursorX, lineY);
+        cursorX += width;
+      });
     };
     const appendWrappedText = (textValue, startLine = '') => {
       let line = startLine;
       Array.from(textValue).forEach(char => {
         if (lines.length >= maxLines) return;
         const test = line + char;
-        if (textWidth(test) > maxWidth && line.trim()) {
+        if (textWidth(test) > safeWidth && line.trim()) {
           pushLine(line);
           line = char.trimStart();
         } else {
@@ -1441,13 +1453,13 @@ async function generatePDF(data) {
       words.forEach(word => {
         if (lines.length >= maxLines) return;
         const test = line + word;
-        if (textWidth(test) > maxWidth && line.trim()) {
+        if (textWidth(test) > safeWidth && line.trim()) {
           pushLine(line);
           if (lines.length >= maxLines) return;
-          line = textWidth(word.trimStart()) > maxWidth
+          line = textWidth(word.trimStart()) > safeWidth
             ? appendWrappedText(word.trimStart())
             : word.trimStart();
-        } else if (textWidth(word) > maxWidth) {
+        } else if (textWidth(word) > safeWidth) {
           line = appendWrappedText(word, line);
         } else {
           line = test;
@@ -1456,7 +1468,7 @@ async function generatePDF(data) {
       if (lines.length < maxLines && line.trim()) pushLine(line);
     });
     lines.slice(0, maxLines).forEach((lineText, i) => {
-      if (lineText) pdfValue(lineText, x, y + i * lineHeight);
+      if (lineText) drawLine(lineText, y + i * lineHeight);
     });
   }
 
