@@ -631,14 +631,12 @@ async function sbDeleteReport(id) {
     console.error('Supabase delete error:', error.message);
     throw new Error('Supabase: ' + error.message);
   }
-  if (count === 0) {
-    const stillExists = await sbReportExists(id);
-    if (stillExists) {
-      console.warn('Supabase delete returned 0 rows for id that still exists:', id);
-      throw new Error('RLS blocked delete');
-    }
-    console.warn('Supabase delete returned 0 rows because report is already gone:', id);
+  const stillExists = await sbReportExists(id);
+  if (stillExists) {
+    console.warn('Supabase delete did not remove report:', id, 'count:', count);
+    throw new Error('Cloud row still exists');
   }
+  if (count === 0) console.warn('Supabase delete returned 0 rows because report is already gone:', id);
 }
 
 async function sbGetNextCounter(dateStr) {
@@ -2089,7 +2087,7 @@ async function loadReportList() {
     if (!deletedIds.has(r.id)) byId.set(r.id, r);
   });
   (cloudReports || []).forEach(r => {
-    byId.set(r.id, { ...r, _fromCloud: true });
+    if (!deletedIds.has(r.id)) byId.set(r.id, { ...r, _fromCloud: true });
   });
   const reports = Array.from(byId.values());
 
