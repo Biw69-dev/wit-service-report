@@ -632,9 +632,12 @@ async function sbDeleteReport(id) {
     throw new Error('Supabase: ' + error.message);
   }
   if (count === 0) {
-    // RLS may have silently blocked the delete
-    console.warn('Supabase delete returned 0 rows for id:', id);
-    throw new Error('RLS blocked delete');
+    const stillExists = await sbReportExists(id);
+    if (stillExists) {
+      console.warn('Supabase delete returned 0 rows for id that still exists:', id);
+      throw new Error('RLS blocked delete');
+    }
+    console.warn('Supabase delete returned 0 rows because report is already gone:', id);
   }
 }
 
@@ -2204,7 +2207,15 @@ async function deleteThis(id, isCloudReport = false) {
       });
     } catch(e) {
       console.error('Cloud delete failed:', e);
-      cloudDeleted = false;
+      cloudDeleted = !(await sbReportExists(id).catch(() => true));
+      if (cloudDeleted) {
+        try {
+          await deleteReport(id);
+          markReportDeleted(id);
+        } catch(localErr) {
+          console.error('Local cleanup after cloud delete failed:', localErr);
+        }
+      }
     }
   } else {
     try {
