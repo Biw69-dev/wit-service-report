@@ -512,6 +512,10 @@ async function sbHasSaveConflict(id, baseCloudUpdatedAt) {
 }
 
 async function sbSaveReport(data) {
+  if (isReportDeleted(data.id)) {
+    console.warn('Supabase save skipped because report was deleted:', data.id);
+    return 'deleted';
+  }
   const baseCloudUpdatedAt = data._baseCloudUpdatedAt || null;
   if (await sbHasSaveConflict(data.id, baseCloudUpdatedAt)) {
     console.warn('Supabase save conflict for id:', data.id);
@@ -523,6 +527,11 @@ async function sbSaveReport(data) {
   } catch (e) {
     console.error('Storage upload error:', e.message || e);
     return false;
+  }
+  if (isReportDeleted(data.id)) {
+    console.warn('Supabase save skipped after upload because report was deleted:', data.id);
+    sbDeleteReportAssets(data.id).catch(e => console.warn('Cloud assets cleanup after deleted save skipped:', e.message || e));
+    return 'deleted';
   }
   delete cloudData._cloudUpdatedAt;
   delete cloudData._baseCloudUpdatedAt;
@@ -558,6 +567,11 @@ async function sbSaveReport(data) {
     console.error('Supabase save error:', error.message);
     return false;
   }
+  if (isReportDeleted(data.id)) {
+    console.warn('Supabase save completed after delete intent; removing cloud row:', data.id);
+    await sbDeleteReport(data.id).catch(e => console.error('Supabase cleanup after deleted save failed:', e));
+    return 'deleted';
+  }
   editingCloudUpdatedAt = savedRow?.updated_at || row.updated_at;
   unmarkReportDeleted(data.id);
   return true;
@@ -584,6 +598,10 @@ function getDeletedReportIds() {
   } catch(e) {
     return new Set();
   }
+}
+
+function isReportDeleted(id) {
+  return getDeletedReportIds().has(id);
 }
 
 function markReportDeleted(id) {
@@ -1434,10 +1452,15 @@ async function saveDraft(returnHome = false) {
 }
 
 async function syncDraftToCloudInBackground(data) {
+  if (isReportDeleted(data.id)) {
+    console.warn('Cloud sync skipped because draft was deleted:', data.id);
+    return;
+  }
   const cloudSaved = await withTimeout(sbSaveReport(data), 15000, 'Cloud sync').catch(e => {
     console.warn('Cloud sync timed out or failed:', e.message || e);
     return false;
   });
+  if (cloudSaved === 'deleted') return;
   if (cloudSaved === 'conflict') {
     toast('Cloud version changed. Reopen this report before saving.');
     return;
@@ -2201,6 +2224,7 @@ async function openReport(id) {
 
 async function deleteThis(id, isCloudReport = false) {
   if (!confirm('Delete this report?')) return;
+  markReportDeleted(id);
   let shouldDeleteCloud = isCloudReport;
   if (!shouldDeleteCloud) {
     shouldDeleteCloud = await sbReportExists(id).catch(() => false);
@@ -2224,6 +2248,8 @@ async function deleteThis(id, isCloudReport = false) {
         } catch(localErr) {
           console.error('Local cleanup after cloud delete failed:', localErr);
         }
+      } else {
+        unmarkReportDeleted(id);
       }
     }
   } else {
