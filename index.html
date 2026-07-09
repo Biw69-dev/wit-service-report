@@ -814,6 +814,7 @@ function showForm(draftId) {
   document.getElementById('homeScreen').classList.remove('screen-active');
   document.getElementById('formScreen').classList.add('screen-active');
   document.getElementById('headerTitle').textContent = draftId ? 'Edit Draft' : 'New Report';
+  if (!draftId) editingDraftId = null;   // New Report: ต้องเริ่มเป็น draft ใหม่
   resetForm();
   if (draftId) loadDraft(draftId);
   else requestAnimationFrame(() => requestAnimationFrame(() => initSigPads()));
@@ -852,7 +853,6 @@ function resetForm() {
     if (sigPads[id]) sigPads[id].clear();
   });
   addPartRow();
-  editingDraftId = null;
   editingCloudUpdatedAt = null;
   lastGeneratedDoc = null;
   lastGeneratedPdfBlob = null;
@@ -1420,6 +1420,9 @@ async function saveDraft(returnHome = false) {
     const id = editingDraftId || 'draft_' + Date.now();
     data.id = id;
     data.status = 'draft';
+    // ล็อก id ทันทีก่อน await ที่ช้า (compression/conflict-check/cloud sync) เพื่อกัน
+    // race ที่ทำให้ save ซ้อนสร้าง draft id ใหม่
+    editingDraftId = id;
     data._baseCloudUpdatedAt = editingCloudUpdatedAt;
     const hasConflict = await withTimeout(
       sbHasSaveConflict(data.id, data._baseCloudUpdatedAt),
@@ -1438,7 +1441,6 @@ async function saveDraft(returnHome = false) {
     data.photoThumbs = photoThumbUrls.slice();
     data.photoCaptions = photoCaptions.slice();
     await withTimeout(saveReport(data), 5000, 'Local draft save');
-    editingDraftId = id;
     toast('Draft saved locally. Syncing cloud...');
     restoreButton();
     syncDraftToCloudInBackground(data);
