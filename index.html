@@ -393,6 +393,9 @@ let lastReportNo = '';
 let editingCloudUpdatedAt = null;
 let reportsRealtimeChannel = null;
 let reportListRefreshTimer = null;
+let reportSyncRetryTimer = null;
+let reportSyncInFlight = false;
+const REPORT_SYNC_RETRY_MS = 30000;
 const STORAGE_BUCKET = 'wit-service-files';
 const PHOTO_MAX_DIMENSION = 1280;
 const PHOTO_JPEG_QUALITY = 0.72;
@@ -602,6 +605,10 @@ function getDeletedReportIds() {
 
 function isReportDeleted(id) {
   return getDeletedReportIds().has(id);
+}
+
+function shouldRetryReportSync(report) {
+  return !!report && !!report.id && !isReportDeleted(report.id);
 }
 
 function markReportDeleted(id) {
@@ -1470,6 +1477,29 @@ async function syncDraftToCloudInBackground(data) {
   toast(cloudSaved ? 'Draft synced ☁️' : 'Saved locally ⚠️ Cloud sync failed');
 }
 
+async function retryPendingReports(localReports, cloudReports) {
+  if (reportSyncInFlight || !navigator.onLine || !Array.isArray(cloudReports)) return;
+  const cloudIds = new Set(cloudReports.map(report => report.id));
+  const pendingReports = (localReports || []).filter(report =>
+    shouldRetryReportSync(report) && !cloudIds.has(report.id)
+  );
+  if (!pendingReports.length) return;
+
+  reportSyncInFlight = true;
+  let syncedAnyReport = false;
+  try {
+    for (const report of pendingReports) {
+      const saved = await withTimeout(sbSaveReport(report), 15000, 'Pending cloud sync');
+      if (saved === true) syncedAnyReport = true;
+    }
+  } catch (e) {
+    console.warn('Pending cloud sync failed:', e.message || e);
+  } finally {
+    reportSyncInFlight = false;
+    if (syncedAnyReport) scheduleReportListRefresh();
+  }
+}
+
 async function loadDraft(id) {
   let data = await sbGetReport(id);
   if (!data) data = await getReport(id); // fallback to local
@@ -2135,6 +2165,15 @@ async function loadReportList() {
     if (localOnly > 0) cloudSyncEl.textContent += ` (${localOnly} pending sync)`;
   }
 
+  const hasPendingLocalReports = reports.some(report => !report._fromCloud);
+  if (hasPendingLocalReports) {
+    retryPendingReports(localReports, cloudReports).catch(e => console.warn('Pending sync retry failed:', e));
+    schedulePendingSyncRetry();
+  } else {
+    clearTimeout(reportSyncRetryTimer);
+    reportSyncRetryTimer = null;
+  }
+
   const list = document.getElementById('reportList');
   const empty = document.getElementById('emptyState');
   const badge = document.getElementById('pendingBadge');
@@ -2289,6 +2328,14 @@ function scheduleReportListRefresh() {
   }, 350);
 }
 
+function schedulePendingSyncRetry() {
+  clearTimeout(reportSyncRetryTimer);
+  reportSyncRetryTimer = setTimeout(() => {
+    reportSyncRetryTimer = null;
+    if (isHomeVisible()) loadReportList().catch(e => console.error('Pending sync refresh failed:', e));
+  }, REPORT_SYNC_RETRY_MS);
+}
+
 function setupRealtimeReports() {
   if (!sb || reportsRealtimeChannel) return;
   reportsRealtimeChannel = sb.channel('reports-shared-list')
@@ -2301,6 +2348,8 @@ function setupRealtimeReports() {
 function teardownRealtimeReports() {
   clearTimeout(reportListRefreshTimer);
   reportListRefreshTimer = null;
+  clearTimeout(reportSyncRetryTimer);
+  reportSyncRetryTimer = null;
   if (!sb || !reportsRealtimeChannel) return;
   sb.removeChannel(reportsRealtimeChannel).catch(e => console.error('Realtime teardown failed:', e));
   reportsRealtimeChannel = null;
@@ -2381,6 +2430,9 @@ async function init() {
 }
 
 window.addEventListener('load', init);
+window.addEventListener('online', () => {
+  if (isHomeVisible()) loadReportList().catch(e => console.error('Online sync refresh failed:', e));
+});
 window.addEventListener('resize', () => {
   clearTimeout(window.__sigResizeTimer);
   window.__sigResizeTimer = setTimeout(() => {
