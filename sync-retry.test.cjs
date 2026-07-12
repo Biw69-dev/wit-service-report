@@ -7,6 +7,7 @@ const source = fs.readFileSync('index.html', 'utf8');
 const match = source.match(/function shouldRetryReportSync\(report\)\s*\{[\s\S]*?\n\}/);
 const mergeMatch = source.match(/function mergeReportList\(cloudReports, localReports, deletedIds = getDeletedReportIds\(\)\)\s*\{[\s\S]*?\n\}/);
 const reportIdMatch = source.match(/function createReportId\(prefix\)\s*\{[\s\S]*?\n\}/);
+const syncErrorMatch = source.match(/function formatCloudSyncError\(context, error\)\s*\{[\s\S]*?\n\}/);
 
 test('retries only reports that are present locally and not deleted', () => {
   assert.ok(match, 'shouldRetryReportSync must exist');
@@ -39,4 +40,15 @@ test('creates a globally unique ID for a new report', () => {
   vm.runInNewContext(`${reportIdMatch[0]}; this.createReportId = createReportId;`, context);
 
   assert.equal(context.createReportId('draft'), 'draft_new-report-id');
+});
+
+test('formats a safe, readable cloud sync error for the mobile UI', () => {
+  assert.ok(syncErrorMatch, 'formatCloudSyncError must exist');
+  const context = {};
+  vm.runInNewContext(`${syncErrorMatch[0]}; this.formatCloudSyncError = formatCloudSyncError;`, context);
+
+  assert.equal(
+    context.formatCloudSyncError('Storage upload failed', new Error('new row violates row-level security policy')),
+    'Storage upload failed: new row violates row-level security policy'
+  );
 });

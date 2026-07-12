@@ -395,6 +395,7 @@ let reportsRealtimeChannel = null;
 let reportListRefreshTimer = null;
 let reportSyncRetryTimer = null;
 let reportSyncInFlight = false;
+let lastCloudSyncError = '';
 const REPORT_SYNC_RETRY_MS = 30000;
 const STORAGE_BUCKET = 'wit-service-files';
 const PHOTO_MAX_DIMENSION = 1280;
@@ -407,6 +408,11 @@ function createReportId(prefix) {
     ? crypto.randomUUID()
     : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
   return `${prefix}_${unique}`;
+}
+
+function formatCloudSyncError(context, error) {
+  const message = error?.message || String(error || 'Unknown error');
+  return `${context}: ${message}`.slice(0, 140);
 }
 
 function openDB() {
@@ -535,7 +541,8 @@ async function sbSaveReport(data) {
   try {
     cloudData = await prepareReportForCloud(data);
   } catch (e) {
-    console.error('Storage upload error:', e.message || e);
+    lastCloudSyncError = formatCloudSyncError('Storage upload failed', e);
+    console.error(lastCloudSyncError);
     return false;
   }
   if (isReportDeleted(data.id)) {
@@ -574,7 +581,8 @@ async function sbSaveReport(data) {
     savedRow = result.data;
   }
   if (error) {
-    console.error('Supabase save error:', error.message);
+    lastCloudSyncError = formatCloudSyncError('Cloud save failed', error);
+    console.error(lastCloudSyncError);
     return false;
   }
   if (isReportDeleted(data.id)) {
@@ -583,6 +591,7 @@ async function sbSaveReport(data) {
     return 'deleted';
   }
   editingCloudUpdatedAt = savedRow?.updated_at || row.updated_at;
+  lastCloudSyncError = '';
   unmarkReportDeleted(data.id);
   return true;
 }
@@ -1475,12 +1484,17 @@ async function syncDraftToCloudInBackground(data) {
     return;
   }
   const cloudSaved = await withTimeout(sbSaveReport(data), 15000, 'Cloud sync').catch(e => {
-    console.warn('Cloud sync timed out or failed:', e.message || e);
+    lastCloudSyncError = formatCloudSyncError('Cloud sync failed', e);
+    console.warn(lastCloudSyncError);
     return false;
   });
   if (cloudSaved === 'deleted') return;
   if (cloudSaved === 'conflict') {
     toast('Cloud version changed. Reopen this report before saving.');
+    return;
+  }
+  if (!cloudSaved && lastCloudSyncError) {
+    toast(lastCloudSyncError);
     return;
   }
   toast(cloudSaved ? 'Draft synced ☁️' : 'Saved locally ⚠️ Cloud sync failed');
@@ -2163,7 +2177,10 @@ async function loadReportList() {
     const localOnly = reports.filter(r => !r._fromCloud).length;
     cloudSyncEl.textContent = '☁️ Connected';
     cloudSyncEl.style.color = localOnly > 0 ? '#e65100' : '#2e7d32';
-    if (localOnly > 0) cloudSyncEl.textContent += ` (${localOnly} pending sync)`;
+    if (localOnly > 0) {
+      cloudSyncEl.textContent += ` (${localOnly} pending sync)`;
+      if (lastCloudSyncError) cloudSyncEl.textContent += `: ${lastCloudSyncError.slice(0, 60)}`;
+    }
   }
 
   const hasPendingLocalReports = reports.some(report => !report._fromCloud);
