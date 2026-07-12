@@ -9,6 +9,7 @@ const mergeMatch = source.match(/function mergeReportList\(cloudReports, localRe
 const reportIdMatch = source.match(/function createReportId\(prefix\)\s*\{[\s\S]*?\n\}/);
 const syncErrorMatch = source.match(/function formatCloudSyncError\(context, error\)\s*\{[\s\S]*?\n\}/);
 const retryDelayMatch = source.match(/function getReportSyncRetryDelay\(attempt\)\s*\{[\s\S]*?\n\}/);
+const metadataMatch = source.match(/function prepareReportMetadataForCloud\(data\)\s*\{[\s\S]*?\n\}/);
 
 test('retries only reports that are present locally and not deleted', () => {
   assert.ok(match, 'shouldRetryReportSync must exist');
@@ -62,4 +63,25 @@ test('retries a pending sync quickly before backing off', () => {
   assert.equal(context.getReportSyncRetryDelay(0), 3000);
   assert.equal(context.getReportSyncRetryDelay(1), 6000);
   assert.equal(context.getReportSyncRetryDelay(4), 30000);
+});
+
+test('writes report metadata first and leaves new photos for background upload', () => {
+  assert.ok(metadataMatch, 'prepareReportMetadataForCloud must exist');
+  const storedPhoto = { fullPath: 'reports/id/photo.jpg', thumbPath: 'reports/id/photo-thumb.jpg' };
+  const context = {
+    STORAGE_BUCKET: 'wit-service-files',
+    isStoragePhoto: photo => !!photo?.fullPath
+  };
+  vm.runInNewContext(`${metadataMatch[0]}; this.prepareReportMetadataForCloud = prepareReportMetadataForCloud;`, context);
+
+  const cloudData = context.prepareReportMetadataForCloud({
+    photos: [storedPhoto, 'data:image/jpeg;base64,new-photo'],
+    photoThumbs: ['thumb'],
+    reportNo: 'WIT-SR-001'
+  });
+
+  assert.equal(cloudData.photos.length, 1);
+  assert.equal(cloudData.photos[0].fullPath, storedPhoto.fullPath);
+  assert.equal(cloudData.photoStorage.pending, 1);
+  assert.equal('photoThumbs' in cloudData, false);
 });

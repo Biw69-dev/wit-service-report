@@ -542,19 +542,7 @@ async function sbSaveReport(data) {
     console.warn('Supabase save conflict for id:', data.id);
     return 'conflict';
   }
-  let cloudData;
-  try {
-    cloudData = await prepareReportForCloud(data);
-  } catch (e) {
-    lastCloudSyncError = formatCloudSyncError('Storage upload failed', e);
-    console.error(lastCloudSyncError);
-    return false;
-  }
-  if (isReportDeleted(data.id)) {
-    console.warn('Supabase save skipped after upload because report was deleted:', data.id);
-    sbDeleteReportAssets(data.id).catch(e => console.warn('Cloud assets cleanup after deleted save skipped:', e.message || e));
-    return 'deleted';
-  }
+  const cloudData = prepareReportMetadataForCloud(data);
   delete cloudData._cloudUpdatedAt;
   delete cloudData._baseCloudUpdatedAt;
   const row = {
@@ -598,7 +586,32 @@ async function sbSaveReport(data) {
   editingCloudUpdatedAt = savedRow?.updated_at || row.updated_at;
   lastCloudSyncError = '';
   unmarkReportDeleted(data.id);
+  syncReportAssetsInBackground(data, editingCloudUpdatedAt);
   return true;
+}
+
+// Supabase Storage upload API: https://supabase.com/docs/reference/javascript/file-buckets-upload
+async function syncReportAssetsInBackground(data, baseCloudUpdatedAt) {
+  const hasPendingAssets = (data.photos || []).some(photo => !isStoragePhoto(photo));
+  if (!hasPendingAssets || isReportDeleted(data.id)) return;
+  try {
+    const cloudData = await prepareReportForCloud(data);
+    delete cloudData._cloudUpdatedAt;
+    delete cloudData._baseCloudUpdatedAt;
+    const { data: savedRow, error } = await sb.from('reports')
+      .update({ data: cloudData, updated_at: new Date().toISOString() })
+      .eq('id', data.id)
+      .eq('updated_at', baseCloudUpdatedAt)
+      .select('updated_at')
+      .maybeSingle();
+    if (error) throw error;
+    if (!savedRow) throw new Error('Cloud version changed before photo upload completed');
+    if (editingDraftId === data.id) editingCloudUpdatedAt = savedRow.updated_at;
+  } catch (e) {
+    lastCloudSyncError = formatCloudSyncError('Background photo upload failed', e);
+    console.error(lastCloudSyncError);
+    toast(lastCloudSyncError);
+  }
 }
 
 async function sbGetAllReports() {
@@ -787,6 +800,19 @@ async function uploadReportPhotos(reportId, fullPhotos, thumbPhotos, revisionKey
     });
   }
   return refs;
+}
+
+function prepareReportMetadataForCloud(data) {
+  const cloudData = { ...data };
+  const photos = data.photos || [];
+  cloudData.photos = photos.filter(isStoragePhoto);
+  delete cloudData.photoThumbs;
+  cloudData.photoStorage = {
+    bucket: STORAGE_BUCKET,
+    count: photos.length,
+    pending: photos.length - cloudData.photos.length
+  };
+  return cloudData;
 }
 
 async function prepareReportForCloud(data) {
