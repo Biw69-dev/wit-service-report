@@ -402,6 +402,13 @@ const PHOTO_JPEG_QUALITY = 0.72;
 const PHOTO_THUMB_MAX_DIMENSION = 320;
 const PHOTO_THUMB_JPEG_QUALITY = 0.64;
 
+function createReportId(prefix) {
+  const unique = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  return `${prefix}_${unique}`;
+}
+
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VER);
@@ -820,7 +827,10 @@ function showForm(draftId) {
   document.getElementById('homeScreen').classList.remove('screen-active');
   document.getElementById('formScreen').classList.add('screen-active');
   document.getElementById('headerTitle').textContent = draftId ? 'Edit Draft' : 'New Report';
-  if (!draftId) editingDraftId = null;   // New Report: ต้องเริ่มเป็น draft ใหม่
+  if (!draftId) {
+    editingDraftId = null;
+    editingCloudUpdatedAt = null;
+  }
   resetForm();
   if (draftId) loadDraft(draftId);
   else requestAnimationFrame(() => requestAnimationFrame(() => initSigPads()));
@@ -1423,7 +1433,7 @@ async function saveDraft(returnHome = false) {
       console.warn('Photo compression skipped:', e.message || e);
     });
     const data = getFormData();
-    const id = editingDraftId || 'draft_' + Date.now();
+    const id = editingDraftId || createReportId('draft');
     data.id = id;
     data.status = 'draft';
     // ล็อก id ทันทีก่อน await ที่ช้า (compression/conflict-check/cloud sync) เพื่อกัน
@@ -2017,7 +2027,7 @@ async function submitReport() {
 
   await compressCurrentPhotos();
 
-  const id = editingDraftId || 'sr_' + Date.now();
+  const id = editingDraftId || createReportId('sr');
   data.id = id;
   data._baseCloudUpdatedAt = editingCloudUpdatedAt;
   if (await sbHasSaveConflict(data.id, data._baseCloudUpdatedAt)) {

@@ -1,4 +1,4 @@
-const CACHE = 'wit-sr-v28';
+const CACHE = 'wit-sr-v29';
 const ASSETS = [
   './manifest.json',
   './new-logo-wit-pdf.jpg',
