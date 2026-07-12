@@ -395,8 +395,9 @@ let reportsRealtimeChannel = null;
 let reportListRefreshTimer = null;
 let reportSyncRetryTimer = null;
 let reportSyncInFlight = false;
+let reportSyncRetryAttempt = 0;
 let lastCloudSyncError = '';
-const REPORT_SYNC_RETRY_MS = 30000;
+const MAX_REPORT_SYNC_RETRY_MS = 30000;
 const STORAGE_BUCKET = 'wit-service-files';
 const PHOTO_MAX_DIMENSION = 1280;
 const PHOTO_JPEG_QUALITY = 0.72;
@@ -413,6 +414,10 @@ function createReportId(prefix) {
 function formatCloudSyncError(context, error) {
   const message = error?.message || String(error || 'Unknown error');
   return `${context}: ${message}`.slice(0, 140);
+}
+
+function getReportSyncRetryDelay(attempt) {
+  return Math.min(MAX_REPORT_SYNC_RETRY_MS, 3000 * (2 ** Math.max(0, attempt)));
 }
 
 function openDB() {
@@ -2190,6 +2195,7 @@ async function loadReportList() {
   } else {
     clearTimeout(reportSyncRetryTimer);
     reportSyncRetryTimer = null;
+    reportSyncRetryAttempt = 0;
   }
 
   const list = document.getElementById('reportList');
@@ -2348,10 +2354,12 @@ function scheduleReportListRefresh() {
 
 function schedulePendingSyncRetry() {
   clearTimeout(reportSyncRetryTimer);
+  const delay = getReportSyncRetryDelay(reportSyncRetryAttempt);
+  reportSyncRetryAttempt += 1;
   reportSyncRetryTimer = setTimeout(() => {
     reportSyncRetryTimer = null;
     if (isHomeVisible()) loadReportList().catch(e => console.error('Pending sync refresh failed:', e));
-  }, REPORT_SYNC_RETRY_MS);
+  }, delay);
 }
 
 function setupRealtimeReports() {
@@ -2368,6 +2376,7 @@ function teardownRealtimeReports() {
   reportListRefreshTimer = null;
   clearTimeout(reportSyncRetryTimer);
   reportSyncRetryTimer = null;
+  reportSyncRetryAttempt = 0;
   if (!sb || !reportsRealtimeChannel) return;
   sb.removeChannel(reportsRealtimeChannel).catch(e => console.error('Realtime teardown failed:', e));
   reportsRealtimeChannel = null;
@@ -2449,6 +2458,7 @@ async function init() {
 
 window.addEventListener('load', init);
 window.addEventListener('online', () => {
+  reportSyncRetryAttempt = 0;
   if (isHomeVisible()) loadReportList().catch(e => console.error('Online sync refresh failed:', e));
 });
 window.addEventListener('resize', () => {

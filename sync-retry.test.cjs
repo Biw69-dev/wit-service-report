@@ -8,6 +8,7 @@ const match = source.match(/function shouldRetryReportSync\(report\)\s*\{[\s\S]*
 const mergeMatch = source.match(/function mergeReportList\(cloudReports, localReports, deletedIds = getDeletedReportIds\(\)\)\s*\{[\s\S]*?\n\}/);
 const reportIdMatch = source.match(/function createReportId\(prefix\)\s*\{[\s\S]*?\n\}/);
 const syncErrorMatch = source.match(/function formatCloudSyncError\(context, error\)\s*\{[\s\S]*?\n\}/);
+const retryDelayMatch = source.match(/function getReportSyncRetryDelay\(attempt\)\s*\{[\s\S]*?\n\}/);
 
 test('retries only reports that are present locally and not deleted', () => {
   assert.ok(match, 'shouldRetryReportSync must exist');
@@ -51,4 +52,14 @@ test('formats a safe, readable cloud sync error for the mobile UI', () => {
     context.formatCloudSyncError('Storage upload failed', new Error('new row violates row-level security policy')),
     'Storage upload failed: new row violates row-level security policy'
   );
+});
+
+test('retries a pending sync quickly before backing off', () => {
+  assert.ok(retryDelayMatch, 'getReportSyncRetryDelay must exist');
+  const context = { MAX_REPORT_SYNC_RETRY_MS: 30000 };
+  vm.runInNewContext(`${retryDelayMatch[0]}; this.getReportSyncRetryDelay = getReportSyncRetryDelay;`, context);
+
+  assert.equal(context.getReportSyncRetryDelay(0), 3000);
+  assert.equal(context.getReportSyncRetryDelay(1), 6000);
+  assert.equal(context.getReportSyncRetryDelay(4), 30000);
 });
