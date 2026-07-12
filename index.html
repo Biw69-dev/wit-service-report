@@ -623,14 +623,13 @@ function unmarkReportDeleted(id) {
   localStorage.setItem('wit_deleted_report_ids', JSON.stringify(Array.from(ids)));
 }
 
-function mergeReports(cloudReports, localReports) {
-  const deletedIds = getDeletedReportIds();
+function mergeReportList(cloudReports, localReports, deletedIds = getDeletedReportIds()) {
   const byId = new Map();
   (localReports || []).forEach(r => {
     if (!deletedIds.has(r.id)) byId.set(r.id, r);
   });
   (cloudReports || []).forEach(r => {
-    byId.set(r.id, r);
+    byId.set(r.id, { ...r, _fromCloud: true });
   });
   return Array.from(byId.values());
 }
@@ -2147,15 +2146,7 @@ async function loadReportList() {
   ]);
 
   // Cloud is the shared source of truth. Local tombstones only hide local-only drafts.
-  const deletedIds = getDeletedReportIds();
-  const byId = new Map();
-  (localReports || []).forEach(r => {
-    if (!deletedIds.has(r.id)) byId.set(r.id, r);
-  });
-  (cloudReports || []).forEach(r => {
-    if (!deletedIds.has(r.id)) byId.set(r.id, { ...r, _fromCloud: true });
-  });
-  const reports = Array.from(byId.values());
+  const reports = mergeReportList(cloudReports, localReports);
 
   // Sync indicator
   if (cloudReports !== null) {
